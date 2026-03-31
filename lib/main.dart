@@ -1,19 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'core/config/env.dart';
-import 'core/config/app_router.dart';
-import 'core/theme/app_theme.dart';
+import 'package:just_audio_background/just_audio_background.dart';
+
+import 'core/app_theme.dart';
+import 'core/router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  
+  // Load environment variables for Supabase
+  await dotenv.load(fileName: ".env");
+  
+  // Initialize Supabase
   await Supabase.initialize(
-    url: AppEnvironment.supabaseUrl,
-    anonKey: AppEnvironment.supabaseAnonKey,
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
+  
+  // Initialize Just Audio Background (for lock screen controls)
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
+    androidNotificationChannelName: 'Audio playback',
+    androidNotificationOngoing: true,
   );
 
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -24,9 +41,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'Flutter Music App',
       theme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
-      routerConfig: AppRouter.router,
-      debugShowCheckedModeBanner: false,
+      routerConfig: appRouter,
     );
   }
 }
