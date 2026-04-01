@@ -687,7 +687,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<Widget> _buildPodcastSection({String title = 'Podcasts nổi bật'}) {
     final podcastsAsync = ref.watch(allPodcastsProvider);
     final expanded = ref.watch(podcastsExpandedProvider);
-    const defaultCount = 3;
+    const defaultCount = 5;
 
     return [
       SliverToBoxAdapter(

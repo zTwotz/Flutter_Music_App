@@ -22,27 +22,32 @@ final homeFilterProvider = NotifierProvider<HomeFilterNotifier, HomeFilter>(
 
 // ─── Songs Provider ────────────────────────────────────────────────────────────
 final trendingSongsProvider = FutureProvider<List<Song>>((ref) async {
-  return ref.watch(songRepositoryProvider).fetchTrendingSongs();
+  final songs = await ref.watch(songRepositoryProvider).fetchTrendingSongs();
+  return songs.toList()..shuffle();
 });
 
 // ─── System Playlists ─────────────────────────────────────────────────────────
 final systemPlaylistsProvider = FutureProvider<List<Playlist>>((ref) async {
-  return ref.watch(collectionRepositoryProvider).fetchSystemPlaylists();
+  final playlists = await ref.watch(collectionRepositoryProvider).fetchSystemPlaylists();
+  return playlists.toList()..shuffle();
 });
 
 // ─── All Artists ──────────────────────────────────────────────────────────────
 final artistsProvider = FutureProvider<List<Artist>>((ref) async {
-  return ref.watch(artistRepositoryProvider).fetchPopularArtists();
+  final artists = await ref.watch(artistRepositoryProvider).fetchPopularArtists();
+  return artists.toList()..shuffle();
 });
 
 // ─── Top 10 Artists ──────────────────────────────────────────────────────────
 final top10ArtistsProvider = FutureProvider<List<Artist>>((ref) async {
-  return ref.watch(artistRepositoryProvider).fetchPopularArtists(limit: 10);
+  final artists = await ref.watch(artistRepositoryProvider).fetchPopularArtists(limit: 50); // Fetch more then shuffle and take top
+  return (artists.toList()..shuffle()).take(10).toList();
 });
 
 // ─── New Albums ──────────────────────────────────────────────────────────────
 final newAlbumsProvider = FutureProvider<List<Album>>((ref) async {
-  return ref.watch(collectionRepositoryProvider).fetchNewAlbums();
+  final albums = await ref.watch(collectionRepositoryProvider).fetchNewAlbums();
+  return albums.toList()..shuffle();
 });
 
 // ─── Recent Plays ────────────────────────────────────────────────────────────

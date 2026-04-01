@@ -8,7 +8,8 @@ import '../providers/auth_provider.dart';
 import '../core/guest_guard.dart';
 
 final allPodcastsProvider = FutureProvider<List<Podcast>>((ref) async {
-  return ref.watch(podcastRepositoryProvider).fetchAllPodcasts();
+  final podcasts = await ref.watch(podcastRepositoryProvider).fetchAllPodcasts();
+  return podcasts.toList()..shuffle();
 });
 
 final subscribedChannelsProvider = FutureProvider<List<PodcastChannel>>((ref) async {

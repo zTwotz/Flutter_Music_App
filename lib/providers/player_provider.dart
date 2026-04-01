@@ -72,8 +72,16 @@ final playerSyncProvider = Provider.autoDispose<void>((ref) {
   // Listen to important changes
   ref.listen(currentSongProvider, (previous, next) {
     if (next != null) {
-      repo.logListen(userId: user.id, songId: next.id.toString());
-      _sync(ref, user.id, next, handler, repo);
+      try {
+        repo.logListen(userId: user.id, songId: next.id.toString());
+      } catch (e) {
+        print('Error logging listen: $e');
+      }
+      try {
+        _sync(ref, user.id, next, handler, repo);
+      } catch (e) {
+        print('Error syncing state: $e');
+      }
     }
   });
 
@@ -83,7 +91,11 @@ final playerSyncProvider = Provider.autoDispose<void>((ref) {
     debounceTimer = Timer(const Duration(seconds: 10), () {
       final song = ref.read(currentSongProvider);
       if (song != null) {
-        _sync(ref, user.id, song, handler, repo);
+        try {
+          _sync(ref, user.id, song, handler, repo);
+        } catch (e) {
+          print('Error periodic syncing state: $e');
+        }
       }
     });
   });
@@ -95,14 +107,18 @@ final playerSyncProvider = Provider.autoDispose<void>((ref) {
 });
 
 void _sync(Ref ref, String userId, Song song, AudioHandler handler, dynamic repo) {
-  repo.updatePlayerState(
-    userId: userId,
-    currentSongId: song.id.toString(),
-    currentPlaylistId: null, // Track playlist ID if needed
-    positionSeconds: handler.player.position.inSeconds,
-    repeatMode: handler.player.loopMode.name,
-    shuffleEnabled: handler.player.shuffleModeEnabled,
-  );
+  try {
+    repo.updatePlayerState(
+      userId: userId,
+      currentSongId: song.id.toString(),
+      currentPlaylistId: null, // Track playlist ID if needed
+      positionSeconds: handler.player.position.inSeconds,
+      repeatMode: handler.player.loopMode.name,
+      shuffleEnabled: handler.player.shuffleModeEnabled,
+    );
+  } catch (e) {
+    print('Sync failed: $e');
+  }
 }
 
 // Rx helper for combineLatest
