@@ -152,7 +152,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     onTap: () async {
                       ref.read(currentSongProvider.notifier).setSong(e.value);
                       await ref.read(audioHandlerProvider).playSong(e.value);
-                      context.push('/player');
+                      context.pushSafe('/player');
                     },
                   ).animate().fadeIn(delay: (e.key * 20).ms).slideX(begin: 0.05)),
             ],
@@ -163,7 +163,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     subtitle: 'Hồ sơ',
                     imageUrl: a.avatarUrl,
                     type: 'artist',
-                    onTap: () => context.push('/artist/${a.id}', extra: a),
+                    onTap: () => context.pushSafe('/artist/${a.id}', extra: a),
                   )),
             ],
             if (data.albums.isNotEmpty) ...[
@@ -173,7 +173,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     subtitle: 'Album',
                     imageUrl: al.coverUrl,
                     type: 'album',
-                    onTap: () => context.push('/album/${al.id}', extra: CollectionItem.fromAlbum(al)),
+                    onTap: () => context.pushSafe('/album/${al.id}', extra: CollectionItem.fromAlbum(al)),
                   )),
             ],
             if (data.playlists.isNotEmpty) ...[
@@ -185,7 +185,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     type: 'playlist',
                     onTap: () {
                       final user = ref.read(authStateProvider).value?.session?.user;
-                      context.push('/playlist/${p.id}', extra: CollectionItem.fromPlaylist(p, currentUserId: user?.id));
+                      context.pushSafe('/playlist/${p.id}', extra: CollectionItem.fromPlaylist(p, currentUserId: user?.id));
                     },
                   )),
             ],

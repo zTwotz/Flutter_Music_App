@@ -47,17 +47,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _playSong(Song song, List<Song> queue, int index) async {
     ref.read(currentSongProvider.notifier).setSong(song);
     await ref.read(audioHandlerProvider).playPlaylist(queue, initialIndex: index);
-    if (mounted) context.push('/player');
+    if (mounted) context.pushSafe('/player');
   }
 
   // ── Navigate to detail screens ───────────────────────────────────────────────
   void _openPlaylist(Playlist playlist) {
     final u = ref.read(authStateProvider).value?.session?.user;
-    context.push('/playlist/${playlist.id}', extra: CollectionItem.fromPlaylist(playlist, currentUserId: u?.id));
+    context.pushSafe('/playlist/${playlist.id}', extra: CollectionItem.fromPlaylist(playlist, currentUserId: u?.id));
   }
 
   void _openArtist(Artist artist) =>
-      context.push('/artist/${artist.id}', extra: artist);
+      context.pushSafe('/artist/${artist.id}', extra: artist);
 
   // ─────────────────────────────────────────────────────────────────────────────
   //  BUILD
@@ -68,25 +68,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       drawer: const UserDrawer(),
-      // ── Custom AppBar: Avatar + filter chips ──────────────────────────────
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: AppTheme.background,
-        elevation: 0,
-        titleSpacing: 0,
-        title: _buildFilterBar(filter),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.bell, size: 22),
-            onPressed: () {},
-          ),
-        ],
-      ),
+      backgroundColor: AppTheme.background,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(trendingSongsProvider);
+          ref.invalidate(artistsProvider);
+          ref.invalidate(systemPlaylistsProvider);
+          ref.invalidate(allPodcastsProvider);
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // ─── Header: Avatar + Filter Bar ─────────────────────────────────────────
+            SliverAppBar(
+              floating: true,
+              pinned: false,
+              backgroundColor: AppTheme.background,
+              elevation: 0,
+              centerTitle: false,
+              titleSpacing: 0,
+              leading: const UserAvatar(),
+              title: _buildFilterBar(filter),
+              actions: [
+                IconButton(
+                  icon: const Icon(LucideIcons.bell, size: 22),
+                  onPressed: () => context.showInfo('Thông báo sẽ sớm ra mắt'),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
 
-      // ── Body  ─────────────────────────────────────────────────────────────
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: _buildBody(filter),
+            // ─── Content ─────────────────────────────────────────────────────
+            ..._buildBodySlivers(filter),
+          ],
+        ),
       ),
     );
   }
@@ -97,82 +112,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildFilterBar(HomeFilter filter) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.only(left: 8, right: 8),
+      padding: const EdgeInsets.only(left: 8, right: 16),
       child: Row(
         children: [
-          // Avatar
-          const SizedBox(width: 40, height: 40, child: UserAvatar()),
-          const SizedBox(width: 12),
+          // "Tất cả"
+          _buildTopChip(
+            'Tất cả',
+            isSelected: filter == HomeFilter.all,
+            isOutlined: filter != HomeFilter.all,
+            onTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.all),
+          ),
+          const SizedBox(width: 8),
 
-          if (filter == HomeFilter.all || filter == HomeFilter.music || filter == HomeFilter.podcasts) ...[
-            // "Tất cả"
-            _Chip(
-              label: 'Tất cả',
-              isSelected: filter == HomeFilter.all,
-              onTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.all),
+          // "Âm nhạc" — becomes joined chip when active
+          if (filter == HomeFilter.music || filter == HomeFilter.musicFollowing) ...[
+            _buildJoinedChip(
+              leftLabel: 'Âm nhạc',
+              rightLabel: 'Đang theo dõi',
+              leftActiveColor: const Color(0xFF90CEFA),
+              rightActiveColor: const Color(0xFF90CEFA),
+              isLeftActive: filter == HomeFilter.music,
+              onLeftTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.music),
+              onRightTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.musicFollowing),
             ),
-            const SizedBox(width: 8),
-            // "Âm nhạc" — becomes joined chip when active
-            if (filter == HomeFilter.music) ...[
-              _JoinedChip(
-                leftLabel: 'Âm nhạc',
-                rightLabel: 'Đang theo dõi',
-                rightActive: false,
-                onLeftTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.all),
-                onRightTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.musicFollowing),
-              ),
-            ] else ...[
-              _Chip(
-                label: 'Âm nhạc',
-                isSelected: false,
-                onTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.music),
-              ),
-            ],
-            const SizedBox(width: 8),
-            // "Podcasts"
-            if (filter == HomeFilter.podcasts) ...[
-              _JoinedChip(
-                leftLabel: 'Podcasts',
-                rightLabel: 'Đang theo dõi',
-                rightActive: false,
-                onLeftTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.all),
-                onRightTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.podcastsFollowing),
-              ),
-            ] else ...[
-              _Chip(
-                label: 'Podcasts',
-                isSelected: false,
-                onTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.podcasts),
-              ),
-            ],
-          ],
-
-          // When "Âm nhạc - Đang theo dõi" is active
-          if (filter == HomeFilter.musicFollowing) ...[
-            _Chip(
-              label: 'Âm nhạc',
-              isSelected: true,
-              onTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.music),
-            ),
-            const SizedBox(width: 4),
-            _Chip(
-              label: 'Đang theo dõi',
-              isSelected: true,
+          ] else ...[
+            _buildTopChip(
+              'Âm nhạc',
+              isSelected: false,
+              isOutlined: filter != HomeFilter.all,
               onTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.music),
             ),
           ],
+          const SizedBox(width: 8),
 
-          // When "Podcasts - Đang theo dõi" is active
-          if (filter == HomeFilter.podcastsFollowing) ...[
-            _Chip(
-              label: 'Podcasts',
-              isSelected: true,
-              onTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.podcasts),
+          // "Podcasts" — becomes joined chip when active
+          if (filter == HomeFilter.podcasts || filter == HomeFilter.podcastsFollowing) ...[
+            _buildJoinedChip(
+              leftLabel: 'Podcasts',
+              rightLabel: 'Đang theo dõi',
+              leftActiveColor: const Color(0xFF1ED760),
+              rightActiveColor: const Color(0xFF1ED760),
+              isLeftActive: filter == HomeFilter.podcasts,
+              onLeftTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.podcasts),
+              onRightTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.podcastsFollowing),
             ),
-            const SizedBox(width: 4),
-            _Chip(
-              label: 'Đang theo dõi',
-              isSelected: true,
+          ] else ...[
+            _buildTopChip(
+              'Podcasts',
+              isSelected: false,
+              isOutlined: filter != HomeFilter.all,
               onTap: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.podcasts),
             ),
           ],
@@ -182,176 +170,243 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  //  BODY router
+  //  UI Helper Methods for Chips
   // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildBody(HomeFilter filter) {
+
+  Widget _buildTopChip(
+    String label, {
+    required bool isSelected,
+    required bool isOutlined,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary : (isOutlined ? Colors.transparent : AppTheme.surfaceHighlight),
+          borderRadius: BorderRadius.circular(20),
+          border: isOutlined ? Border.all(color: Colors.white.withOpacity(0.12), width: 1) : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.black : AppTheme.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJoinedChip({
+    required String leftLabel,
+    required String rightLabel,
+    required Color leftActiveColor,
+    required Color rightActiveColor,
+    required bool isLeftActive,
+    required VoidCallback onLeftTap,
+    required VoidCallback onRightTap,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: onLeftTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: isLeftActive ? leftActiveColor : AppTheme.primary.withOpacity(0.12),
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  leftLabel,
+                  style: TextStyle(
+                    fontSize: 13, 
+                    fontWeight: FontWeight.w600, 
+                    color: isLeftActive ? Colors.black : AppTheme.primary,
+                  ),
+                ),
+                if (isLeftActive) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.close, size: 14, color: Colors.black54),
+                ],
+              ],
+            ),
+          ),
+        ),
+        Container(width: 1, color: Colors.black12, height: 28),
+        GestureDetector(
+          onTap: onRightTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: !isLeftActive ? rightActiveColor : AppTheme.surfaceHighlight,
+              borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
+            ),
+            child: Text(
+              rightLabel,
+              style: TextStyle(
+                fontSize: 13, 
+                fontWeight: FontWeight.w600, 
+                color: !isLeftActive ? Colors.black : AppTheme.textPrimary,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  //  BODY sliver router
+  // ─────────────────────────────────────────────────────────────────────────────
+  List<Widget> _buildBodySlivers(HomeFilter filter) {
     return switch (filter) {
-      HomeFilter.all              => _buildAllContent(),
-      HomeFilter.music            => _buildMusicContent(),
-      HomeFilter.musicFollowing   => _buildMusicFollowingContent(),
-      HomeFilter.podcasts         => _buildPodcastsContent(),
-      HomeFilter.podcastsFollowing => _buildPodcastsFollowingContent(),
+      HomeFilter.all              => _buildAllSlivers(),
+      HomeFilter.music            => _buildMusicSlivers(),
+      HomeFilter.musicFollowing   => _buildMusicFollowingSlivers(),
+      HomeFilter.podcasts         => _buildPodcastsSlivers(),
+      HomeFilter.podcastsFollowing => _buildPodcastsFollowingSlivers(),
     };
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  //  "TẤT CẢ" view
+  //  "TẤT CẢ" view (Slivers)
   // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildAllContent() {
-    return CustomScrollView(
-      key: const ValueKey('all'),
-      slivers: [
-        // Greeting
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.m, AppSpacing.m, AppSpacing.m, AppSpacing.xs),
-            child: Text(
-              _greeting(),
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1),
-        ),
+  List<Widget> _buildAllSlivers() {
+    return [
+      // Greeting
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.m, 0, AppSpacing.m, AppSpacing.xs),
+          child: Text(
+            _greeting(),
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+        ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1),
+      ),
 
-        // System Playlists section
-        ..._buildPlaylistSection(),
+      // System Playlists section
+      ..._buildPlaylistSection(),
 
-        // Artists row
-        ..._buildArtistSection(),
+      // Artists row
+      ..._buildArtistSection(),
 
-        // Songs section
-        ..._buildSongSection(),
+      // Songs section
+      ..._buildSongSection(),
 
-        // Podcasts section
-        ..._buildPodcastSection(),
+      // Podcasts section
+      ..._buildPodcastSection(),
 
-        const SliverToBoxAdapter(child: SizedBox(height: 120)),
-      ],
-    );
+      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+    ];
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  //  "ÂM NHẠC" view
+  //  "ÂM NHẠC" view (Slivers)
   // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildMusicContent() {
-    return CustomScrollView(
-      key: const ValueKey('music'),
-      slivers: [
-        // System Playlists
-        ..._buildPlaylistSection(),
-        // Artists
-        ..._buildArtistSection(),
-        // Songs
-        ..._buildSongSection(),
-        const SliverToBoxAdapter(child: SizedBox(height: 120)),
-      ],
-    );
+  List<Widget> _buildMusicSlivers() {
+    return [
+      ..._buildPlaylistSection(),
+      ..._buildArtistSection(),
+      ..._buildSongSection(),
+      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+    ];
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  //  "ÂM NHẠC - ĐANG THEO DÕI" view
+  //  "ÂM NHẠC - ĐANG THEO DÕI" view (Slivers)
   // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildMusicFollowingContent() {
+  List<Widget> _buildMusicFollowingSlivers() {
     final user = ref.watch(authStateProvider).value?.session?.user;
-    if (user == null) return _buildLoginPrompt('theo dõi nghệ sĩ');
+    if (user == null) return [SliverToBoxAdapter(child: _buildLoginPrompt('theo dõi nghệ sĩ'))];
 
     final followedAsync = ref.watch(followedArtistsProvider);
 
-    return CustomScrollView(
-      key: const ValueKey('music-following'),
-      slivers: [
-        SliverToBoxAdapter(
-          child: HomeSectionHeader(title: 'Nghệ sĩ đang theo dõi'),
+    return [
+      SliverToBoxAdapter(child: HomeSectionHeader(title: 'Nghệ sĩ đang theo dõi')),
+      SliverToBoxAdapter(
+        child: followedAsync.when(
+          loading: () => const SizedBox(height: 104, child: AppLoadingIndicator()),
+          error: (e, _) => AppErrorState(onRetry: () => ref.invalidate(followedArtistsProvider)),
+          data: (artists) {
+            if (artists.isEmpty) {
+              return AppEmptyState(
+                icon: LucideIcons.userPlus,
+                title: 'Chưa theo dõi ai',
+                message: 'Hãy khám phá các nghệ sĩ và nhấn theo dõi để cập nhật nhạc mới.',
+                actionLabel: 'Khám phá ngay',
+                onAction: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.all),
+              );
+            }
+            return ArtistAvatarRow(artists: artists, onTap: _openArtist).animate().fadeIn();
+          },
         ),
-        SliverToBoxAdapter(
-          child: followedAsync.when(
-            loading: () => const SizedBox(height: 104, child: AppLoadingIndicator()),
-            error: (e, _) => AppErrorState(onRetry: () => ref.invalidate(followedArtistsProvider)),
-            data: (artists) {
-              if (artists.isEmpty) {
-                return AppEmptyState(
-                  icon: LucideIcons.userPlus,
-                  title: 'Chưa theo dõi ai',
-                  message: 'Hãy khám phá các nghệ sĩ và nhấn theo dõi để cập nhật nhạc mới.',
-                  actionLabel: 'Khám phá ngay',
-                  onAction: () => ref.read(homeFilterProvider.notifier).setFilter(HomeFilter.all),
-                );
-              }
-              return ArtistAvatarRow(artists: artists, onTap: _openArtist).animate().fadeIn();
-            },
-          ),
-        ),
-        // Songs from followed artists (load all trending songs as proxy)
-        ..._buildSongSection(title: 'Nhạc của nghệ sĩ bạn theo dõi'),
-        const SliverToBoxAdapter(child: SizedBox(height: 120)),
-      ],
-    );
+      ),
+      ..._buildSongSection(title: 'Nhạc của nghệ sĩ bạn theo dõi'),
+      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+    ];
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  //  "PODCASTS" view
+  //  "PODCASTS" view (Slivers)
   // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildPodcastsContent() {
-    return CustomScrollView(
-      key: const ValueKey('podcasts'),
-      slivers: [
-        ..._buildPodcastSection(title: 'Khám phá Podcast'),
-        const SliverToBoxAdapter(child: SizedBox(height: 120)),
-      ],
-    );
+  List<Widget> _buildPodcastsSlivers() {
+    return [
+      ..._buildPodcastSection(title: 'Khám phá Podcast'),
+      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+    ];
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  //  "PODCASTS - ĐANG THEO DÕI" view
+  //  "PODCASTS - ĐANG THEO DÕI" view (Slivers)
   // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildPodcastsFollowingContent() {
+  List<Widget> _buildPodcastsFollowingSlivers() {
     final user = ref.watch(authStateProvider).value?.session?.user;
-    if (user == null) return _buildLoginPrompt('theo dõi podcast');
+    if (user == null) return [SliverToBoxAdapter(child: _buildLoginPrompt('theo dõi podcast'))];
 
     final channelsAsync = ref.watch(subscribedChannelsProvider);
     final followedPodcastsAsync = ref.watch(followedPodcastsProvider);
 
-    return CustomScrollView(
-      key: const ValueKey('podcasts-following'),
-      slivers: [
-        SliverToBoxAdapter(
-          child: HomeSectionHeader(title: 'Kênh podcast đang theo dõi'),
-        ),
-        SliverToBoxAdapter(
-          child: channelsAsync.when(
-            loading: () => const SizedBox(height: 104, child: Center(child: CircularProgressIndicator())),
-            error: (e, _) => _buildError('Không tải được kênh'),
-            data: (channels) {
-              if (channels.isEmpty) return _buildEmpty('Bạn chưa theo dõi kênh nào');
-              return FollowedPodcastChannelsRow(channels: channels);
-            },
-          ),
-        ),
-        
-        SliverToBoxAdapter(child: HomeSectionHeader(title: 'Tập mới từ các kênh bạn theo dõi')),
-        
-        followedPodcastsAsync.when(
-          loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
-          error: (e, _) => SliverToBoxAdapter(child: _buildError('Lỗi tải bài học mới')),
-          data: (podcasts) {
-            if (podcasts.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-            return SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => PodcastCard(
-                    podcast: podcasts[index],
-                    onTap: () => context.push('/podcast/${podcasts[index].id}', extra: podcasts[index]),
-                  ),
-                  childCount: podcasts.length,
-                ),
-              ),
-            );
+    return [
+      SliverToBoxAdapter(child: HomeSectionHeader(title: 'Kênh podcast đang theo dõi')),
+      SliverToBoxAdapter(
+        child: channelsAsync.when(
+          loading: () => const SizedBox(height: 104, child: Center(child: CircularProgressIndicator())),
+          error: (e, _) => _buildError('Không tải được kênh'),
+          data: (channels) {
+            if (channels.isEmpty) return _buildEmpty('Bạn chưa theo dõi kênh nào');
+            return FollowedPodcastChannelsRow(channels: channels);
           },
         ),
-        
-        const SliverToBoxAdapter(child: SizedBox(height: 120)),
-      ],
-    );
+      ),
+      SliverToBoxAdapter(child: HomeSectionHeader(title: 'Tập mới từ các kênh bạn theo dõi')),
+      followedPodcastsAsync.when(
+        loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
+        error: (e, _) => SliverToBoxAdapter(child: _buildError('Lỗi tải bài học mới')),
+        data: (podcasts) {
+          if (podcasts.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+          return SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => PodcastCard(
+                  podcast: podcasts[index],
+                  onTap: () => context.pushSafe('/podcast/${podcasts[index].id}', extra: podcasts[index]),
+                ),
+                childCount: podcasts.length,
+              ),
+            ),
+          );
+        },
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+    ];
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -477,7 +532,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           data: (podcasts) => HomeSectionHeader(
             title: title,
             actionLabel: podcasts.length > defaultCount
-                ? (expanded ? 'Thu gọn' : 'Hiển thị tất cả')
+                ? (expanded ? 'Thu gọn' : 'Hiển thị thêm')
                 : null,
             onActionTap: () => ref.read(podcastsExpandedProvider.notifier).toggle(),
           ),
@@ -494,18 +549,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         data: (podcasts) {
           if (podcasts.isEmpty) return SliverToBoxAdapter(child: _buildEmpty('Chưa có podcast nào'));
           final shown = expanded ? podcasts : podcasts.take(defaultCount).toList();
-          return SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final p = shown[index];
-                  return PodcastCard(
-                    podcast: p,
-                    onTap: () => context.push('/podcast/${p.id}', extra: p),
-                  );
-                },
-                childCount: shown.length,
+          
+          return SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  ...shown.map((p) => PodcastCard(
+                        podcast: p,
+                        onTap: () => context.pushSafe('/podcast/${p.id}', extra: p),
+                      )),
+                  if (podcasts.length > defaultCount)
+                    _buildExpandCollapseButton(
+                      expanded: expanded,
+                      onTap: () => ref.read(podcastsExpandedProvider.notifier).toggle(),
+                    ),
+                ],
               ),
             ),
           );
@@ -557,100 +616,3 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 }
-
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  PRIVATE CHIP WIDGETS
-// ─────────────────────────────────────────────────────────────────────────────
-class _Chip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _Chip({required this.label, required this.isSelected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primary : AppTheme.surfaceHighlight,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.black : AppTheme.textPrimary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _JoinedChip extends StatelessWidget {
-  final String leftLabel;
-  final String rightLabel;
-  final bool rightActive;
-  final VoidCallback onLeftTap;
-  final VoidCallback onRightTap;
-
-  const _JoinedChip({
-    required this.leftLabel,
-    required this.rightLabel,
-    required this.rightActive,
-    required this.onLeftTap,
-    required this.onRightTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: onLeftTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: const BoxDecoration(
-              color: AppTheme.primary,
-              borderRadius: BorderRadius.horizontal(left: Radius.circular(20)),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  leftLabel,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black),
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.close, size: 14, color: Colors.black54),
-              ],
-            ),
-          ),
-        ),
-        Container(width: 1, color: Colors.black26, height: 34),
-        GestureDetector(
-          onTap: onRightTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: const BoxDecoration(
-              color: AppTheme.primary,
-              borderRadius: BorderRadius.horizontal(right: Radius.circular(20)),
-            ),
-            child: Text(
-              rightLabel,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-

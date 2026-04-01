@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:go_router/go_router.dart';
 import 'app_theme.dart';
+
+DateTime? _lastNavTime;
 
 extension AppUIExtension on BuildContext {
   void showSuccess(String message, {SnackBarAction? action}) {
@@ -92,4 +95,15 @@ extension AppUIExtension on BuildContext {
   // Helper for responsive checks
   bool get isSmallScreen => MediaQuery.of(this).size.width < 360;
   bool get isTablet => MediaQuery.of(this).size.width >= 600;
+
+  /// Safely push a new route with a debounce to prevent double-navigation.
+  void pushSafe(String location, {Object? extra}) {
+    final now = DateTime.now();
+    if (_lastNavTime != null && 
+        now.difference(_lastNavTime!) < const Duration(milliseconds: 500)) {
+      return;
+    }
+    _lastNavTime = now;
+    push(location, extra: extra);
+  }
 }

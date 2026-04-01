@@ -6,6 +6,7 @@ import '../core/app_theme.dart';
 import '../providers/library_providers.dart';
 import '../providers/player_provider.dart';
 import '../widgets/song_list_item.dart';
+import '../core/app_ui_utils.dart';
 
 class LikedSongsScreen extends ConsumerWidget {
   const LikedSongsScreen({super.key});
@@ -95,7 +96,7 @@ class LikedSongsScreen extends ConsumerWidget {
                           final shuffled = List.of(songs)..shuffle();
                           ref.read(currentSongProvider.notifier).setSong(shuffled.first);
                           await ref.read(audioHandlerProvider).playSong(shuffled.first);
-                          if (context.mounted) context.push('/player');
+                          if (context.mounted) context.pushSafe('/player');
                         },
                       ),
                       const SizedBox(width: 12),
@@ -103,7 +104,7 @@ class LikedSongsScreen extends ConsumerWidget {
                         if (songs.isEmpty) return;
                         ref.read(currentSongProvider.notifier).setSong(songs.first);
                         await ref.read(audioHandlerProvider).playSong(songs.first);
-                        if (context.mounted) context.push('/player');
+                        if (context.mounted) context.pushSafe('/player');
                       }),
                     ],
                   ],
@@ -131,7 +132,7 @@ class LikedSongsScreen extends ConsumerWidget {
                       onTap: () async {
                         ref.read(currentSongProvider.notifier).setSong(song);
                         await ref.read(audioHandlerProvider).playSong(song);
-                        if (context.mounted) context.push('/player');
+                        if (context.mounted) context.pushSafe('/player');
                       },
                     );
                   },

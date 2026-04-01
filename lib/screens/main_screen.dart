@@ -69,6 +69,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final location = GoRouterState.of(context).uri.toString();
     final isPlayerVisible = location.startsWith('/player');
 
+    final currentSong = ref.watch(currentSongProvider);
+    final bottomPadding = isPlayerVisible 
+        ? 0.0 
+        : (currentSong != null ? 110.0 : 70.0);
+
     // ─── Build ──────────────────────────────────────────────────────────────────
     
     return Scaffold(
@@ -76,7 +81,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         children: [
           // The main content area
           Padding(
-            padding: EdgeInsets.only(bottom: isPlayerVisible ? 0 : 110),
+            padding: EdgeInsets.only(bottom: bottomPadding),
             child: widget.child,
           ),
           

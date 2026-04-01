@@ -79,7 +79,7 @@ class PodcastDetailScreen extends ConsumerWidget {
                   GestureDetector(
                     onTap: () {
                       if (podcast.channelId != null) {
-                        context.push('/podcast-channel/${podcast.channelId}');
+                        context.pushSafe('/podcast-channel/${podcast.channelId}');
                       }
                     },
                     child: Row(
@@ -108,7 +108,7 @@ class PodcastDetailScreen extends ConsumerWidget {
                             final s = _toSong(podcast);
                             ref.read(currentSongProvider.notifier).setSong(s);
                             await ref.read(audioHandlerProvider).playSong(s);
-                            if (context.mounted) context.push('/player');
+                            if (context.mounted) context.pushSafe('/player');
                           }
                         },
                         icon: const Icon(LucideIcons.play, size: 20),

@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../providers/player_provider.dart';
 import '../core/app_theme.dart';
+import '../core/app_ui_utils.dart';
 
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
@@ -29,7 +30,7 @@ class MiniPlayer extends ConsumerWidget {
     }
 
     return GestureDetector(
-      onTap: () => context.push('/player'),
+      onTap: () => context.pushSafe('/player'),
       child: Container(
         height: 72,
         margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s, vertical: AppSpacing.xs),
