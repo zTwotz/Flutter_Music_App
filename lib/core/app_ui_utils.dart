@@ -3,35 +3,39 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'app_theme.dart';
 
 extension AppUIExtension on BuildContext {
-  void showSuccess(String message) {
+  void showSuccess(String message, {SnackBarAction? action}) {
     _showSnackBar(
       message: message,
       icon: LucideIcons.checkCircle,
       color: AppTheme.primary,
+      action: action,
     );
   }
 
-  void showError(String message) {
+  void showError(String message, {SnackBarAction? action}) {
     _showSnackBar(
       message: message,
       icon: LucideIcons.alertCircle,
       color: Colors.red[700]!,
+      action: action,
     );
   }
 
-  void showInfo(String message) {
+  void showInfo(String message, {SnackBarAction? action}) {
     _showSnackBar(
       message: message,
       icon: LucideIcons.info,
       color: AppTheme.surfaceHighlight,
+      action: action,
     );
   }
 
-  void showWarning(String message) {
+  void showWarning(String message, {SnackBarAction? action}) {
     _showSnackBar(
       message: message,
       icon: LucideIcons.alertTriangle,
       color: Colors.orange[700]!,
+      action: action,
     );
   }
 
@@ -39,9 +43,14 @@ extension AppUIExtension on BuildContext {
     required String message,
     required IconData icon,
     required Color color,
+    SnackBarAction? action,
   }) {
+    // Force immediate dismissal of any previous snackbars
+    ScaffoldMessenger.of(this).hideCurrentSnackBar();
     ScaffoldMessenger.of(this).clearSnackBars();
-    ScaffoldMessenger.of(this).showSnackBar(
+    
+    final messenger = ScaffoldMessenger.of(this);
+    messenger.showSnackBar(
       SnackBar(
         content: Row(
           children: [
@@ -60,14 +69,24 @@ extension AppUIExtension on BuildContext {
           ],
         ),
         backgroundColor: color,
+        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
+        action: action,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.m),
         ),
         margin: const EdgeInsets.all(AppSpacing.m),
-        duration: const Duration(seconds: 3),
       ),
     );
+
+    // Guaranteed Hard Dismiss after 3.2s just in case
+    Future.delayed(const Duration(milliseconds: 3200), () {
+      try {
+        messenger.hideCurrentSnackBar();
+      } catch (_) {
+        // Context might be gone, safe to ignore
+      }
+    });
   }
 
   // Helper for responsive checks

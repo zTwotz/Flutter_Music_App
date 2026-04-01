@@ -13,13 +13,9 @@ class AudioHandler {
   List<Song> get currentQueue => _currentQueue;
 
   Future<void> init() async {
-    // just_audio_background initialization is usually handled in main.dart
-    // but we ensure the source is set
-    try {
-      await _player.setAudioSource(_playlist);
-    } catch (e) {
-      print("Error initializing audio source: $e");
-    }
+    // We don't set the audio source here to avoid "Unexpected null value" 
+    // errors when the playlist is empty. The source will be set 
+    // automatically in playSong() or playPlaylist().
   }
 
   Future<void> playSong(Song song, {List<Song>? contextQueue}) async {
