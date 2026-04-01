@@ -71,51 +71,6 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       parentNavigatorKey: rootNavigatorKey,
-      path: '/playlist/:id',
-      builder: (context, state) {
-        final playlistItem = state.extra as CollectionItem;
-        return CollectionDetailScreen(item: playlistItem);
-      },
-    ),
-    GoRoute(
-      parentNavigatorKey: rootNavigatorKey,
-      path: '/album/:id',
-      builder: (context, state) {
-        final albumItem = state.extra as CollectionItem;
-        return CollectionDetailScreen(item: albumItem);
-      },
-    ),
-    GoRoute(
-      parentNavigatorKey: rootNavigatorKey,
-      path: '/artist/:id',
-      builder: (context, state) {
-        final artist = state.extra as Artist;
-        return ArtistDetailScreen(artist: artist);
-      },
-    ),
-    GoRoute(
-      parentNavigatorKey: rootNavigatorKey,
-      path: '/podcast/:id',
-      builder: (context, state) {
-        final podcast = state.extra as Podcast;
-        return PodcastDetailScreen(podcast: podcast);
-      },
-    ),
-    GoRoute(
-      parentNavigatorKey: rootNavigatorKey,
-      path: '/podcast-channel/:id',
-      builder: (context, state) {
-        final channelId = state.pathParameters['id']!;
-        return PodcastChannelScreen(channelId: channelId);
-      },
-    ),
-    GoRoute(
-      parentNavigatorKey: rootNavigatorKey,
-      path: '/liked-songs',
-      builder: (context, state) => const LikedSongsScreen(),
-    ),
-    GoRoute(
-      parentNavigatorKey: rootNavigatorKey,
       path: '/create-playlist',
       pageBuilder: (context, state) => CustomTransitionPage(
         child: const CreatePlaylistScreen(),
@@ -131,13 +86,14 @@ final GoRouter appRouter = GoRouter(
       ),
     ),
 
-    // ── Shell (with bottom nav) ────────────────────────────────────────────
+    // ── Shell (with bottom nav & persistent UI) ───────────────────────────
     ShellRoute(
       navigatorKey: shellNavigatorKey,
       builder: (context, state, child) {
         return MainScreen(child: child);
       },
       routes: [
+        // Tab Pages
         GoRoute(
           path: '/',
           builder: (context, state) => const HomeScreen(),
@@ -149,6 +105,47 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/library',
           builder: (context, state) => const LibraryScreen(),
+        ),
+
+        // Detail Pages (Inside Shell)
+        GoRoute(
+          path: '/playlist/:id',
+          builder: (context, state) {
+            final playlistItem = state.extra as CollectionItem;
+            return CollectionDetailScreen(item: playlistItem);
+          },
+        ),
+        GoRoute(
+          path: '/album/:id',
+          builder: (context, state) {
+            final albumItem = state.extra as CollectionItem;
+            return CollectionDetailScreen(item: albumItem);
+          },
+        ),
+        GoRoute(
+          path: '/artist/:id',
+          builder: (context, state) {
+            final artist = state.extra as Artist;
+            return ArtistDetailScreen(artist: artist);
+          },
+        ),
+        GoRoute(
+          path: '/podcast/:id',
+          builder: (context, state) {
+            final podcast = state.extra as Podcast;
+            return PodcastDetailScreen(podcast: podcast);
+          },
+        ),
+        GoRoute(
+          path: '/podcast-channel/:id',
+          builder: (context, state) {
+            final channelId = state.pathParameters['id']!;
+            return PodcastChannelScreen(channelId: channelId);
+          },
+        ),
+        GoRoute(
+          path: '/liked-songs',
+          builder: (context, state) => const LikedSongsScreen(),
         ),
       ],
     ),

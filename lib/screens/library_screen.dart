@@ -30,10 +30,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final user = authState.value?.session?.user;
     final filter = ref.watch(libraryFilterProvider);
 
-    return Scaffold(
-      drawer: const UserDrawer(),
-      backgroundColor: AppTheme.background,
-      body: CustomScrollView(
+    return Material(
+      color: AppTheme.background,
+      child: CustomScrollView(
         slivers: [
           // ── App Bar ────────────────────────────────────────────────────
           SliverAppBar(

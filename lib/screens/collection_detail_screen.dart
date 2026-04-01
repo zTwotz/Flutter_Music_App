@@ -15,6 +15,7 @@ import '../core/app_theme.dart';
 import '../core/app_ui_utils.dart';
 import '../core/guest_guard.dart';
 import '../providers/saved_playlists_provider.dart';
+import '../core/player_utils.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class CollectionDetailScreen extends ConsumerStatefulWidget {
@@ -124,20 +125,20 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
   Widget build(BuildContext context) {
     final songsAsync = ref.watch(collectionDetailProvider(widget.item));
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: CustomScrollView(
+    return Material(
+      color: AppTheme.background,
+      child: CustomScrollView(
         slivers: [
-          // ── Hero Header ──
+          // ── App Bar ────────────────────────────────────────────────────
           SliverAppBar(
-            expandedHeight: 280,
+            expandedHeight: 300,
             pinned: true,
-            backgroundColor: AppTheme.surface,
+            backgroundColor: AppTheme.background,
+            elevation: 0,
             actions: [
               if (widget.item.isOwner)
                 IconButton(
-                  icon: const Icon(LucideIcons.moreVertical),
-                  tooltip: 'Tuỳ chọn',
+                  icon: const Icon(LucideIcons.moreVertical, size: 22),
                   onPressed: _showOptionsMenu,
                 )
               else if (widget.item.type != CollectionType.album) // System playlist
@@ -158,6 +159,7 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                       ),
                       error: (_, __) => const SizedBox.shrink(),
                     ),
+              const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
@@ -225,10 +227,13 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
 
           // ── Loading / Error / Content ──
           songsAsync.when(
-            loading: () => const SliverFillRemaining(
-              child: AppLoadingIndicator(),
+            loading: () => const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 48),
+                child: Center(child: AppLoadingIndicator()),
+              ),
             ),
-            error: (err, stack) => SliverFillRemaining(
+            error: (err, stack) => SliverToBoxAdapter(
               child: AppErrorState(
                 error: err.toString(),
                 onRetry: () => ref.invalidate(collectionDetailProvider(widget.item)),
@@ -236,7 +241,7 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
             ),
             data: (songs) {
               if (songs.isEmpty) {
-                return const SliverFillRemaining(
+                return const SliverToBoxAdapter(
                   child: AppEmptyState(
                     icon: LucideIcons.music,
                     title: 'Trống',
@@ -255,9 +260,8 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () async {
-                                ref.read(currentSongProvider.notifier).setSong(songs.first);
-                                await ref.read(audioHandlerProvider).playPlaylist(songs);
+                              onPressed: () {
+                                context.playOrNavigate(ref, songs.first, songs);
                               },
                               icon: const Icon(LucideIcons.play, size: 18),
                               label: const Text('Phát tất cả'),
@@ -271,10 +275,9 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                           const SizedBox(width: 12),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () async {
+                              onPressed: () {
                                 final shuffled = List<Song>.from(songs)..shuffle();
-                                ref.read(currentSongProvider.notifier).setSong(shuffled.first);
-                                await ref.read(audioHandlerProvider).playPlaylist(shuffled);
+                                context.playOrNavigate(ref, shuffled.first, shuffled);
                               },
                               icon: const Icon(LucideIcons.shuffle, size: 18),
                               label: const Text('Trộn bài'),
@@ -303,9 +306,8 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                                   onPressed: () => _removeSong(song.id, song.title),
                                 )
                               : null,
-                          onTap: () async {
-                            ref.read(currentSongProvider.notifier).setSong(song);
-                            await ref.read(audioHandlerProvider).playPlaylist(songs, initialIndex: index);
+                          onTap: () {
+                            context.playOrNavigate(ref, song, songs, initialIndex: index);
                           },
                         ).animate().fadeIn(delay: (index * 20).ms).slideX(begin: 0.05);
                       },

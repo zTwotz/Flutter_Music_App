@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/create_menu_bottom_sheet.dart';
+import '../widgets/user_drawer.dart';
 import '../providers/player_provider.dart';
 import '../core/app_theme.dart';
 
@@ -46,10 +47,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   int _getSelectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/search')) {
+    if (location.startsWith('/search') || location.startsWith('/podcast')) {
       return 1;
     }
-    if (location.startsWith('/library')) {
+    if (location.startsWith('/library') || 
+        location.startsWith('/liked-songs') ||
+        location.startsWith('/playlist') ||
+        location.startsWith('/album')) {
       return 2;
     }
     return 0;
@@ -77,6 +81,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // ─── Build ──────────────────────────────────────────────────────────────────
     
     return Scaffold(
+      drawer: const UserDrawer(),
       body: Stack(
         children: [
           // The main content area

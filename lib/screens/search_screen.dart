@@ -12,7 +12,10 @@ import '../widgets/user_drawer.dart';
 import '../widgets/search_widgets.dart';
 import '../widgets/state_widgets.dart';
 import '../models/collection_item.dart';
+import '../models/song.dart';
+import '../models/podcast.dart';
 import '../core/app_ui_utils.dart';
+import '../core/player_utils.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -47,40 +50,56 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     _focusNode.unfocus();
   }
 
+  Song _toSong(Podcast p) {
+    return Song(
+      id: p.id.hashCode,
+      title: p.title,
+      artistName: p.channelName ?? 'Podcast',
+      coverUrl: p.coverUrl,
+      audioUrl: p.audioUrl ?? '',
+      durationSeconds: p.durationSeconds,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(searchQueryProvider);
     final searchResults = ref.watch(searchResultsProvider);
 
-    return Scaffold(
-      drawer: const UserDrawer(),
-      appBar: AppBar(
-        leading: const UserAvatar(),
-        title: query.isEmpty
-            ? const Text('Tìm kiếm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28))
-            : null,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          if (query.isNotEmpty)
-            IconButton(
-              icon: const Icon(LucideIcons.x),
-              onPressed: _clearSearch,
-            ),
-        ],
-      ),
-      body: CustomScrollView(
+    return Material(
+      color: AppTheme.background,
+      child: CustomScrollView(
         slivers: [
+          // ─── Header: Avatar + Title ──────────────────────────────────────
+          SliverAppBar(
+            floating: true,
+            pinned: false,
+            backgroundColor: AppTheme.background,
+            elevation: 0,
+            leading: const UserAvatar(),
+            title: const Text(
+              'Tìm kiếm',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+            ),
+            centerTitle: false,
+          ),
+
           // ─── Search Bar ──────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.m),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.xs),
               child: TextField(
                 controller: _searchController,
                 focusNode: _focusNode,
                 decoration: InputDecoration(
                   hintText: 'Bạn muốn nghe gì?',
                   prefixIcon: const Icon(LucideIcons.search, size: 20),
+                  suffixIcon: query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(LucideIcons.x, size: 18),
+                          onPressed: _clearSearch,
+                        )
+                      : null,
                 ),
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
                 onSubmitted: (value) async {
@@ -99,6 +118,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             _buildDiscoveryView()
           else
             _buildResultsView(searchResults),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
       ),
     );
@@ -149,10 +170,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     subtitle: e.value.artistName ?? 'Âm nhạc',
                     imageUrl: e.value.coverUrl,
                     type: 'song',
-                    onTap: () async {
-                      ref.read(currentSongProvider.notifier).setSong(e.value);
-                      await ref.read(audioHandlerProvider).playSong(e.value);
-                      context.pushSafe('/player');
+                    onTap: () {
+                      context.playOrNavigate(ref, e.value, data.songs, initialIndex: e.key);
                     },
                   ).animate().fadeIn(delay: (e.key * 20).ms).slideX(begin: 0.05)),
             ],
@@ -191,15 +210,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ],
             if (data.podcasts.isNotEmpty) ...[
               _buildSectionHeader('Podcasts'),
-              ...data.podcasts.map((pd) => SearchResultTile(
-                    title: pd.title,
-                    subtitle: pd.channelName ?? 'Podcast',
-                    imageUrl: pd.coverUrl,
-                    type: 'podcast',
-                    onTap: () {
-                      // Handle podcast playback or detail
-                    },
-                  )),
+              ...data.podcasts.asMap().entries.map((e) {
+                final pd = e.value;
+                return SearchResultTile(
+                  title: pd.title,
+                  subtitle: pd.channelName ?? 'Podcast',
+                  imageUrl: pd.coverUrl,
+                  type: 'podcast',
+                  onTap: () {
+                    final queue = data.podcasts.map(_toSong).toList();
+                    context.playOrNavigate(ref, _toSong(pd), queue, initialIndex: e.key);
+                  },
+                );
+              }),
             ],
             const SizedBox(height: 120),
           ]),

@@ -5,11 +5,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/podcast_channel.dart';
+import '../models/podcast.dart';
+import '../models/song.dart';
 import '../providers/podcast_providers.dart';
 import '../providers/player_provider.dart';
 import '../widgets/state_widgets.dart';
 import '../core/app_theme.dart';
 import '../core/app_ui_utils.dart';
+import '../core/player_utils.dart';
 import '../widgets/podcast_card.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -17,6 +20,17 @@ class PodcastChannelScreen extends ConsumerWidget {
   final String channelId;
 
   const PodcastChannelScreen({super.key, required this.channelId});
+
+  Song _toSong(Podcast p) {
+    return Song(
+      id: p.id.hashCode,
+      title: p.title,
+      artistName: p.channelName ?? 'Podcast',
+      coverUrl: p.coverUrl,
+      audioUrl: p.audioUrl ?? '',
+      durationSeconds: p.durationSeconds,
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,9 +41,9 @@ class PodcastChannelScreen extends ConsumerWidget {
     final isSubscribed = isSubscribedAsync.value ?? false;
     final isSubLoading = isSubscribedAsync.isLoading;
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: channelAsync.when(
+    return Material(
+      color: AppTheme.background,
+      child: channelAsync.when(
         loading: () => const AppLoadingIndicator(),
         error: (err, _) => AppErrorState(
           error: err.toString(),
@@ -165,9 +179,14 @@ class PodcastChannelScreen extends ConsumerWidget {
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
+                        final p = podcasts[index];
+                        final s = _toSong(p);
                         return PodcastCard(
-                          podcast: podcasts[index],
-                          onTap: () => context.push('/podcast/${podcasts[index].id}', extra: podcasts[index]),
+                          podcast: p,
+                          onTap: () {
+                            final queue = podcasts.map(_toSong).toList();
+                            context.playOrNavigate(ref, s, queue, initialIndex: index);
+                          },
                         ).animate().fadeIn(delay: (index * 50).ms).slideY(begin: 0.1);
                       },
                       childCount: podcasts.length,

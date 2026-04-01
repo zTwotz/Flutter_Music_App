@@ -7,6 +7,7 @@ import '../providers/library_providers.dart';
 import '../providers/player_provider.dart';
 import '../widgets/song_list_item.dart';
 import '../core/app_ui_utils.dart';
+import '../core/player_utils.dart';
 
 class LikedSongsScreen extends ConsumerWidget {
   const LikedSongsScreen({super.key});
@@ -15,8 +16,9 @@ class LikedSongsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final likedAsync = ref.watch(likedSongsProvider);
 
-    return Scaffold(
-      body: CustomScrollView(
+    return Material(
+      color: AppTheme.background,
+      child: CustomScrollView(
         slivers: [
           // ── Gradient Header ─────────────────────────────────────────────
           SliverAppBar(
@@ -91,20 +93,16 @@ class LikedSongsScreen extends ConsumerWidget {
                     if (songs.isNotEmpty) ...[
                       _buildCircleAction(
                         icon: LucideIcons.shuffle,
-                        onTap: () async {
+                        onTap: () {
                           if (songs.isEmpty) return;
                           final shuffled = List.of(songs)..shuffle();
-                          ref.read(currentSongProvider.notifier).setSong(shuffled.first);
-                          await ref.read(audioHandlerProvider).playSong(shuffled.first);
-                          if (context.mounted) context.pushSafe('/player');
+                          context.playOrNavigate(ref, shuffled.first, shuffled);
                         },
                       ),
                       const SizedBox(width: 12),
-                      _buildPlayButton(onTap: () async {
+                      _buildPlayButton(onTap: () {
                         if (songs.isEmpty) return;
-                        ref.read(currentSongProvider.notifier).setSong(songs.first);
-                        await ref.read(audioHandlerProvider).playSong(songs.first);
-                        if (context.mounted) context.pushSafe('/player');
+                        context.playOrNavigate(ref, songs.first, songs);
                       }),
                     ],
                   ],
@@ -129,10 +127,8 @@ class LikedSongsScreen extends ConsumerWidget {
                     final song = songs[index];
                     return SongListItem(
                       song: song,
-                      onTap: () async {
-                        ref.read(currentSongProvider.notifier).setSong(song);
-                        await ref.read(audioHandlerProvider).playSong(song);
-                        if (context.mounted) context.pushSafe('/player');
+                      onTap: () {
+                        context.playOrNavigate(ref, song, songs, initialIndex: index);
                       },
                     );
                   },

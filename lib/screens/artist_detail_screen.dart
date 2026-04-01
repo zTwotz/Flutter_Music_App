@@ -12,6 +12,7 @@ import '../widgets/song_list_item.dart';
 import '../widgets/state_widgets.dart';
 import '../core/app_theme.dart';
 import '../core/app_ui_utils.dart';
+import '../core/player_utils.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 String _formatNumber(int num) {
@@ -42,9 +43,9 @@ class ArtistDetailScreen extends ConsumerWidget {
 
     final imageToUse = displayArtist.coverUrl ?? displayArtist.avatarUrl;
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: CustomScrollView(
+    return Material(
+      color: AppTheme.background,
+      child: CustomScrollView(
         slivers: [
           // ── Hero Header ──
           SliverAppBar(
@@ -122,9 +123,8 @@ class ArtistDetailScreen extends ConsumerWidget {
                   songsAsync.when(
                     data: (songs) => Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: songs.isEmpty ? null : () async {
-                          ref.read(currentSongProvider.notifier).setSong(songs.first);
-                          await ref.read(audioHandlerProvider).playPlaylist(songs);
+                        onPressed: songs.isEmpty ? null : () {
+                          context.playOrNavigate(ref, songs.first, songs);
                         },
                         icon: const Icon(LucideIcons.play, size: 18),
                         label: const Text('Phát nhạc'),
@@ -208,9 +208,8 @@ class ArtistDetailScreen extends ConsumerWidget {
                         final song = songs[index];
                         return SongListItem(
                           song: song,
-                          onTap: () async {
-                            ref.read(currentSongProvider.notifier).setSong(song);
-                            await ref.read(audioHandlerProvider).playPlaylist(songs, initialIndex: index);
+                          onTap: () {
+                            context.playOrNavigate(ref, song, songs, initialIndex: index);
                           },
                         ).animate().fadeIn(delay: (index * 20).ms).slideX(begin: 0.05);
                       },

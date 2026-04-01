@@ -9,6 +9,7 @@ import '../models/song.dart';
 import '../providers/player_provider.dart';
 import '../core/app_theme.dart';
 import '../core/app_ui_utils.dart';
+import '../core/player_utils.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class PodcastDetailScreen extends ConsumerWidget {
@@ -29,9 +30,9 @@ class PodcastDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: CustomScrollView(
+    return Material(
+      color: AppTheme.background,
+      child: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 320,
@@ -103,12 +104,10 @@ class PodcastDetailScreen extends ConsumerWidget {
                   Row(
                     children: [
                       ElevatedButton.icon(
-                        onPressed: () async {
+                        onPressed: () {
                           if (podcast.audioUrl != null && podcast.audioUrl!.isNotEmpty) {
                             final s = _toSong(podcast);
-                            ref.read(currentSongProvider.notifier).setSong(s);
-                            await ref.read(audioHandlerProvider).playSong(s);
-                            if (context.mounted) context.pushSafe('/player');
+                            context.playOrNavigate(ref, s, [s]);
                           }
                         },
                         icon: const Icon(LucideIcons.play, size: 20),

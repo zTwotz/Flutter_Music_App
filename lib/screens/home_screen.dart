@@ -8,9 +8,11 @@ import '../models/song.dart';
 import '../models/artist.dart';
 import '../models/playlist.dart';
 import '../models/collection_item.dart';
+import '../models/podcast.dart';
 import '../providers/player_provider.dart';
 import '../providers/home_providers.dart';
 import '../providers/auth_provider.dart';
+import '../providers/podcast_providers.dart';
 import '../widgets/user_drawer.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/song_list_item.dart';
@@ -20,8 +22,8 @@ import '../widgets/podcast_card.dart';
 import '../widgets/followed_channels_row.dart';
 import '../widgets/home_section_header.dart';
 import '../widgets/state_widgets.dart';
-import '../providers/podcast_providers.dart';
 import '../core/app_ui_utils.dart';
+import '../core/player_utils.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 // ── Greeting helper ──────────────────────────────────────────────────────────
@@ -43,11 +45,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return 'Chào buổi tối';
   }
 
+  Song _toSong(Podcast p) {
+    return Song(
+      id: p.id.hashCode,
+      title: p.title,
+      artistName: p.channelName ?? 'Podcast',
+      coverUrl: p.coverUrl,
+      audioUrl: p.audioUrl ?? '',
+      durationSeconds: p.durationSeconds,
+    );
+  }
+
   // ── Helper: play a single song ───────────────────────────────────────────────
-  Future<void> _playSong(Song song, List<Song> queue, int index) async {
-    ref.read(currentSongProvider.notifier).setSong(song);
-    await ref.read(audioHandlerProvider).playPlaylist(queue, initialIndex: index);
-    if (mounted) context.pushSafe('/player');
+  void _playSong(Song song, List<Song> queue, int index) {
+    context.playOrNavigate(ref, song, queue, initialIndex: index);
   }
 
   // ── Navigate to detail screens ───────────────────────────────────────────────
@@ -66,10 +77,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final filter = ref.watch(homeFilterProvider);
 
-    return Scaffold(
-      drawer: const UserDrawer(),
-      backgroundColor: AppTheme.background,
-      body: RefreshIndicator(
+    return Material(
+      color: AppTheme.background,
+      child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(trendingSongsProvider);
           ref.invalidate(artistsProvider);
@@ -332,7 +342,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       SliverToBoxAdapter(child: HomeSectionHeader(title: 'Nghệ sĩ đang theo dõi')),
       SliverToBoxAdapter(
         child: followedAsync.when(
-          loading: () => const SizedBox(height: 104, child: AppLoadingIndicator()),
+          loading: () => SizedBox(height: 104, child: AppLoadingIndicator()),
           error: (e, _) => AppErrorState(onRetry: () => ref.invalidate(followedArtistsProvider)),
           data: (artists) {
             if (artists.isEmpty) {
@@ -395,10 +405,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, index) => PodcastCard(
-                  podcast: podcasts[index],
-                  onTap: () => context.pushSafe('/podcast/${podcasts[index].id}', extra: podcasts[index]),
-                ),
+                (context, index) {
+                  final p = podcasts[index];
+                  return PodcastCard(
+                    podcast: p,
+                    onTap: () {
+                      final queue = podcasts.map(_toSong).toList();
+                      context.playOrNavigate(ref, _toSong(p), queue, initialIndex: index);
+                    },
+                  );
+                },
                 childCount: podcasts.length,
               ),
             ),
@@ -421,11 +437,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: SizedBox(
           height: 192,
           child: playlistsAsync.when(
-            loading: () => const AppLoadingIndicator(),
+            loading: () => AppLoadingIndicator(),
             error: (e, _) => AppErrorState(onRetry: () => ref.invalidate(systemPlaylistsProvider)),
             data: (playlists) {
               if (playlists.isEmpty) {
-                return const AppEmptyState(
+                return AppEmptyState(
                   icon: LucideIcons.music,
                   title: 'Trống',
                   message: 'Không tìm thấy danh sách phát nào.',
@@ -458,7 +474,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       SliverToBoxAdapter(child: HomeSectionHeader(title: 'Nghệ sĩ nổi bật')),
       SliverToBoxAdapter(
         child: artistsAsync.when(
-          loading: () => const SizedBox(height: 104, child: AppLoadingIndicator()),
+          loading: () => SizedBox(height: 104, child: AppLoadingIndicator()),
           error: (e, _) => AppErrorState(onRetry: () => ref.invalidate(artistsProvider)),
           data: (artists) {
             if (artists.isEmpty) return const SizedBox.shrink();
@@ -491,14 +507,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       SliverToBoxAdapter(
         child: songsAsync.when(
           loading: () => Column(
-            children: List.generate(5, (_) => const Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.xs),
+            children: List.generate(5, (_) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.xs),
               child: AppSkeleton(width: double.infinity, height: 60),
             )),
           ),
           error: (e, _) => AppErrorState(onRetry: () => ref.invalidate(trendingSongsProvider)),
           data: (songs) {
-            if (songs.isEmpty) return const AppEmptyState(icon: LucideIcons.music, title: 'Không có bài hát', message: 'Hiện chưa có bài hát thịnh hành.');
+            if (songs.isEmpty) return AppEmptyState(icon: LucideIcons.music, title: 'Không có bài hát', message: 'Hiện chưa có bài hát thịnh hành.');
             final shown = expanded ? songs : songs.take(defaultCount).toList();
             return Column(
               children: [
@@ -555,10 +571,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 children: [
-                  ...shown.map((p) => PodcastCard(
-                        podcast: p,
-                        onTap: () => context.pushSafe('/podcast/${p.id}', extra: p),
-                      )),
+                  ...shown.asMap().entries.map((e) {
+                    final p = e.value;
+                    return PodcastCard(
+                      podcast: p,
+                      onTap: () {
+                        final queue = shown.map(_toSong).toList();
+                        context.playOrNavigate(ref, _toSong(p), queue, initialIndex: e.key);
+                      },
+                    );
+                  }),
                   if (podcasts.length > defaultCount)
                     _buildExpandCollapseButton(
                       expanded: expanded,
