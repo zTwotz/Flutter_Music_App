@@ -1,12 +1,17 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../providers/player_provider.dart';
 import '../providers/favorite_provider.dart';
+import '../models/artist.dart';
 import '../core/app_theme.dart';
 import '../widgets/add_to_playlist_bottom_sheet.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -172,13 +177,11 @@ class PlayerScreen extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                             ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.1),
                             const SizedBox(height: 4),
-                            Text(
-                              currentSong.artistName ?? 'Nghệ sĩ',
+                            ClickableArtistText(
+                              text: currentSong.artistName ?? 'Nghệ sĩ',
                               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 color: AppTheme.textSecondary,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ).animate().fadeIn(delay: 300.ms).slideX(begin: -0.1),
                           ],
                         ),
@@ -322,5 +325,127 @@ class PlayerScreen extends ConsumerWidget {
     final minutes = d.inMinutes;
     final seconds = d.inSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+}
+
+class ClickableArtistText extends StatefulWidget {
+  final String text;
+  final TextStyle? style;
+
+  const ClickableArtistText({super.key, required this.text, this.style});
+
+  @override
+  State<ClickableArtistText> createState() => _ClickableArtistTextState();
+}
+
+class _ClickableArtistTextState extends State<ClickableArtistText> {
+  final List<TapGestureRecognizer> _recognizers = [];
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _disposeRecognizers();
+    super.dispose();
+  }
+
+  void _disposeRecognizers() {
+    for (var r in _recognizers) {
+      r.dispose();
+    }
+    _recognizers.clear();
+  }
+
+  Future<void> _handleArtistTap(String artistName) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final name = artistName.trim();
+      // Fetch artist by name using ILIKE for case-insensitive matching
+      final response = await Supabase.instance.client
+          .from('artists')
+          .select()
+          .ilike('name', name)
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      if (response != null) {
+        final artistId = response['id'].toString();
+        // Construct minimum artist to pass (ArtistDetailScreen fetches the rest via artistDetailProvider)
+        final dummyArtist = Artist(
+          id: artistId,
+          name: response['name'] ?? name,
+          avatarUrl: response['avatar_url'],
+          coverUrl: response['cover_url'],
+        );
+        
+        // Close the full-screen player first
+        context.pop();
+        
+        // Push the artist screen in the main shell
+        context.push('/artist/$artistId', extra: dummyArtist);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không tìm thấy thông tin nghệ sĩ "$name"')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đã xảy ra lỗi khi tải hồ sơ nghệ sĩ')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _disposeRecognizers();
+
+    // Regex to split by delimiters: " ft ", " x ", ",", ".".
+    // We capture the delimiters so we can render them as non-clickable string.
+    final RegExp regex = RegExp(r'(\s+ft\s+|\s+x\s+|,|\.)', caseSensitive: false);
+    final Iterable<Match> matches = regex.allMatches(widget.text);
+
+    int lastMatchEnd = 0;
+    final List<InlineSpan> spans = [];
+
+    final TextStyle linkStyle = (widget.style ?? const TextStyle()).copyWith(
+      decoration: TextDecoration.underline,
+      decorationColor: Colors.white24,
+    );
+    final TextStyle normalStyle = widget.style ?? const TextStyle();
+
+    for (final Match match in matches) {
+      // Artist name before the delimiter
+      final precedingText = widget.text.substring(lastMatchEnd, match.start);
+      if (precedingText.isNotEmpty) {
+        final recognizer = TapGestureRecognizer()..onTap = () => _handleArtistTap(precedingText);
+        _recognizers.add(recognizer);
+        spans.add(TextSpan(text: precedingText, style: linkStyle, recognizer: recognizer));
+      }
+
+      // The delimiter itself (non-clickable)
+      final delimiter = match.group(0)!;
+      spans.add(TextSpan(text: delimiter, style: normalStyle));
+
+      lastMatchEnd = match.end;
+    }
+
+    // Capture the final piece (or the whole string if no matches)
+    final remainingText = widget.text.substring(lastMatchEnd);
+    if (remainingText.isNotEmpty) {
+      final recognizer = TapGestureRecognizer()..onTap = () => _handleArtistTap(remainingText);
+      _recognizers.add(recognizer);
+      spans.add(TextSpan(text: remainingText, style: linkStyle, recognizer: recognizer));
+    }
+
+    return RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(children: spans),
+    );
   }
 }

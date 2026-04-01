@@ -1,6 +1,6 @@
 # flutter_music_app
 flutter clean && flutter pub get && flutter run -d chrome
-
+flutter clean && flutter pub get
 nguyenngoctinh011258@gmail.com
 Tinh@123
 
