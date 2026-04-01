@@ -20,6 +20,17 @@ class CollectionRepository {
     return (response as List).map((e) => Playlist.fromJson(e)).toList();
   }
 
+  /// Fetch new albums.
+  Future<List<Album>> fetchNewAlbums() async {
+    final response = await _supabase
+        .from('albums')
+        .select()
+        .order('release_date', ascending: false)
+        .limit(10);
+        
+    return (response as List).map((e) => Album.fromJson(e)).toList();
+  }
+
   /// Get details and songs of a playlist.
   Future<List<Song>> fetchPlaylistSongs(int playlistId) async {
     final response = await _supabase

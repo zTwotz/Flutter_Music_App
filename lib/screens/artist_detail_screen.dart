@@ -35,7 +35,6 @@ class ArtistDetailScreen extends ConsumerWidget {
     final displayArtist = artistDetailAsync.value ?? artist;
 
     final songsAsync = ref.watch(artistSongsProvider(artist.id));
-    final albumsAsync = ref.watch(artistAlbumsProvider(artist.id));
     
     final isFollowingAsync = ref.watch(artistFollowStatusProvider(artist.id));
     final isFollowing = isFollowingAsync.value ?? false;
@@ -197,7 +196,7 @@ class ArtistDetailScreen extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(AppSpacing.m, AppSpacing.l, AppSpacing.m, AppSpacing.s),
                       child: Text(
-                        'Bài hát phổ biến',
+                        'Tất cả bài hát',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -213,7 +212,7 @@ class ArtistDetailScreen extends ConsumerWidget {
                           },
                         ).animate().fadeIn(delay: (index * 20).ms).slideX(begin: 0.05);
                       },
-                      childCount: songs.length > 5 ? 5 : songs.length,
+                      childCount: songs.length,
                     ),
                   ),
                 ],
@@ -224,51 +223,6 @@ class ArtistDetailScreen extends ConsumerWidget {
               child: AppErrorState(
                 error: err.toString(),
                 onRetry: () => ref.invalidate(artistSongsProvider(artist.id)),
-              ),
-            ),
-          ),
-
-          SliverToBoxAdapter(child: const SizedBox(height: 24)),
-
-          // ── Albums Section ──
-          albumsAsync.when(
-            data: (albums) {
-              if (albums.isEmpty) return const SliverToBoxAdapter(child: SizedBox());
-              return SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.m, AppSpacing.l, AppSpacing.m, AppSpacing.m),
-                      child: Text(
-                        'Phát hành gần đây',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    SizedBox(
-                      height: 220,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
-                        itemCount: albums.length,
-                        itemBuilder: (context, index) {
-                          final album = albums[index];
-                          return _AlbumCard(album: album)
-                              .animate()
-                              .fadeIn(delay: (index * 50).ms)
-                              .scale(begin: const Offset(0.9, 0.9));
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-            loading: () => const SliverToBoxAdapter(child: AppLoadingIndicator()),
-            error: (err, _) => SliverToBoxAdapter(
-              child: AppErrorState(
-                error: err.toString(),
-                onRetry: () => ref.invalidate(artistAlbumsProvider(artist.id)),
               ),
             ),
           ),
@@ -285,57 +239,6 @@ class ArtistDetailScreen extends ConsumerWidget {
       color: AppTheme.surface,
       child: Center(
         child: Text(firstLetter, style: const TextStyle(fontSize: 80, color: Colors.white12, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
-}
-
-class _AlbumCard extends StatelessWidget {
-  final dynamic album; // Using dynamic because Album is mapped
-
-  const _AlbumCard({required this.album});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        context.push('/album/${album.id}', extra: CollectionItem.fromAlbum(album));
-      },
-      child: Container(
-        width: 140,
-        margin: const EdgeInsets.only(right: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: album.coverUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: album.coverUrl!,
-                        fit: BoxFit.cover,
-                      )
-                    : Container(
-                        color: AppTheme.surfaceHighlight,
-                        child: const Icon(LucideIcons.disc, color: AppTheme.textSecondary, size: 40),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              album.title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, height: 1.2),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              album.albumType == 'single' ? 'Đĩa đơn' : 'Album',
-              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
       ),
     );
   }

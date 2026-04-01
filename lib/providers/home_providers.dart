@@ -4,6 +4,7 @@ import 'auth_provider.dart';
 import '../models/song.dart';
 import '../models/playlist.dart';
 import '../models/artist.dart';
+import '../models/album.dart';
 
 // ─── Filter Chip Enum ──────────────────────────────────────────────────────────
 enum HomeFilter { all, music, musicFollowing, podcasts, podcastsFollowing }
@@ -32,6 +33,23 @@ final systemPlaylistsProvider = FutureProvider<List<Playlist>>((ref) async {
 // ─── All Artists ──────────────────────────────────────────────────────────────
 final artistsProvider = FutureProvider<List<Artist>>((ref) async {
   return ref.watch(artistRepositoryProvider).fetchPopularArtists();
+});
+
+// ─── Top 10 Artists ──────────────────────────────────────────────────────────
+final top10ArtistsProvider = FutureProvider<List<Artist>>((ref) async {
+  return ref.watch(artistRepositoryProvider).fetchPopularArtists(limit: 10);
+});
+
+// ─── New Albums ──────────────────────────────────────────────────────────────
+final newAlbumsProvider = FutureProvider<List<Album>>((ref) async {
+  return ref.watch(collectionRepositoryProvider).fetchNewAlbums();
+});
+
+// ─── Recent Plays ────────────────────────────────────────────────────────────
+final recentPlaysProvider = FutureProvider<List<dynamic>>((ref) async {
+  final user = ref.watch(authStateProvider).value?.session?.user;
+  if (user == null) return [];
+  return ref.watch(playerRepositoryProvider).fetchRecentPlays(user.id);
 });
 
 // ─── All Podcasts ─────────────────────────────────────────────────────────────

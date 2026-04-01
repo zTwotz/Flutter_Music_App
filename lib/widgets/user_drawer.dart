@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/supabase_provider.dart';
+import '../core/app_theme.dart';
 import 'user_avatar.dart';
 
 class UserDrawer extends ConsumerWidget {
@@ -17,7 +18,7 @@ class UserDrawer extends ConsumerWidget {
     final profile = ref.watch(profileProvider).value;
 
     final isLoggedIn = user != null;
-    final displayName = profile?.displayName ?? 'Chưa đăng nhập';
+    final displayName = profile?.displayName ?? (isLoggedIn ? 'Tài khoản' : 'Chưa đăng nhập');
     final email = user?.email ?? 'Chưa có email';
 
     return Drawer(
@@ -54,21 +55,19 @@ class UserDrawer extends ConsumerWidget {
               ),
             ),
             const Divider(),
-            if (!isLoggedIn)
-              ListTile(
-                leading: const Icon(LucideIcons.userPlus),
-                title: const Text('Thêm tài khoản'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push('/login');
-                },
-              ),
-            if (!isLoggedIn)
-              ListTile(
-                leading: const Icon(LucideIcons.zap),
-                title: const Text('Có gì mới'),
-                onTap: () {},
-              ),
+            ListTile(
+              leading: const Icon(LucideIcons.userPlus),
+              title: const Text('Thêm tài khoản'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/login');
+              },
+            ),
+            ListTile(
+              leading: const Icon(LucideIcons.zap),
+              title: const Text('Có gì mới'),
+              onTap: () {},
+            ),
             ListTile(
               leading: const Icon(LucideIcons.clock),
               title: const Text('Gần đây'),
@@ -100,11 +99,15 @@ class UserDrawer extends ConsumerWidget {
                         ),
                         child: const Text('Đăng xuất'),
                       )
-                    : ElevatedButton(
+                    : OutlinedButton(
                         onPressed: () {
                           Navigator.pop(context); // Close Drawer
                           context.push('/login');
                         },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primary,
+                          side: const BorderSide(color: AppTheme.primary),
+                        ),
                         child: const Text('Đăng nhập'),
                       ),
               ),

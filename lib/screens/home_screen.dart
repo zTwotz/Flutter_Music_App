@@ -9,6 +9,7 @@ import '../models/artist.dart';
 import '../models/playlist.dart';
 import '../models/collection_item.dart';
 import '../models/podcast.dart';
+import '../models/album.dart';
 import '../providers/player_provider.dart';
 import '../providers/home_providers.dart';
 import '../providers/auth_provider.dart';
@@ -19,6 +20,7 @@ import '../widgets/song_list_item.dart';
 import '../widgets/playlist_card.dart';
 import '../widgets/artist_avatar_row.dart';
 import '../widgets/podcast_card.dart';
+import '../widgets/recent_play_tile.dart';
 import '../widgets/followed_channels_row.dart';
 import '../widgets/home_section_header.dart';
 import '../widgets/state_widgets.dart';
@@ -69,6 +71,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _openArtist(Artist artist) =>
       context.pushSafe('/artist/${artist.id}', extra: artist);
+
+  void _openAlbum(Album album) {
+    context.pushSafe('/album/${album.id}', extra: CollectionItem.fromAlbum(album));
+  }
 
   // ─────────────────────────────────────────────────────────────────────────────
   //  BUILD
@@ -301,8 +307,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1),
       ),
 
-      // System Playlists section
+      ..._buildRecentSection(),
       ..._buildPlaylistSection(),
+      ..._buildNewAlbumSection(),
+      ..._buildRecommendedSection(),
 
       // Artists row
       ..._buildArtistSection(),
@@ -322,7 +330,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ─────────────────────────────────────────────────────────────────────────────
   List<Widget> _buildMusicSlivers() {
     return [
+      ..._buildRecentSection(),
       ..._buildPlaylistSection(),
+      ..._buildNewAlbumSection(),
+      ..._buildRecommendedSection(),
       ..._buildArtistSection(),
       ..._buildSongSection(),
       const SliverToBoxAdapter(child: SizedBox(height: 120)),
@@ -429,13 +440,137 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   //  REUSABLE SECTION BUILDERS
   // ─────────────────────────────────────────────────────────────────────────────
 
+  List<Widget> _buildRecentSection() {
+    final user = ref.watch(authStateProvider).value?.session?.user;
+    if (user == null) return const []; // Don't show if not logged in
+
+    final recentPlaysAsync = ref.watch(recentPlaysProvider);
+    return [
+      SliverToBoxAdapter(
+        child: recentPlaysAsync.when(
+          data: (items) {
+            if (items.isEmpty) return const SizedBox.shrink();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const HomeSectionHeader(title: 'Nghe gần đây'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+                  child: GridView.builder(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisExtent: 56, // height of tile
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemCount: items.length,
+                    itemBuilder: (context, i) {
+                      final item = items[i];
+                      if (item is Song) {
+                        return RecentPlayTile(
+                          title: item.title,
+                          imageUrl: item.coverUrl,
+                          onTap: () => _playSong(item, [item], 0),
+                        ).animate().fadeIn(delay: (i * 30).ms);
+                      } else if (item is Podcast) {
+                        return RecentPlayTile(
+                          title: item.title,
+                          imageUrl: item.coverUrl,
+                          onTap: () => context.playOrNavigate(ref, _toSong(item), [_toSong(item)], initialIndex: 0),
+                        ).animate().fadeIn(delay: (i * 30).ms);
+                      }
+                      return const SizedBox();
+                    },
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.m),
+              ],
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (e, _) => const SizedBox.shrink(),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildNewAlbumSection() {
+    final albumsAsync = ref.watch(newAlbumsProvider);
+    return [
+      SliverToBoxAdapter(child: const HomeSectionHeader(title: 'Album mới')),
+      SliverToBoxAdapter(
+        child: SizedBox(
+          height: 216,
+          child: albumsAsync.when(
+            loading: () => const AppLoadingIndicator(),
+            error: (e, _) => AppErrorState(onRetry: () => ref.invalidate(newAlbumsProvider)),
+            data: (albums) {
+              if (albums.isEmpty) return const SizedBox.shrink();
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+                itemCount: albums.length,
+                itemBuilder: (context, i) {
+                  final a = albums[i];
+                  return PlaylistCard(
+                    title: a.title,
+                    subtitle: 'Album',
+                    imageUrl: a.coverUrl,
+                    onTap: () => _openAlbum(a),
+                  ).animate().fadeIn(delay: (i * 50).ms).scale(begin: const Offset(0.9, 0.9));
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildRecommendedSection() {
+    final songsAsync = ref.watch(trendingSongsProvider);
+    return [
+      SliverToBoxAdapter(child: const HomeSectionHeader(title: 'Nội dung đang được đề xuất')),
+      SliverToBoxAdapter(
+        child: SizedBox(
+          height: 216,
+          child: songsAsync.when(
+            loading: () => const AppLoadingIndicator(),
+            error: (e, _) => const SizedBox.shrink(),
+            data: (songs) {
+              if (songs.isEmpty) return const SizedBox.shrink();
+              final recommended = songs.take(10).toList();
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m),
+                itemCount: recommended.length,
+                itemBuilder: (context, i) {
+                  final s = recommended[i];
+                  return PlaylistCard(
+                    title: s.title,
+                    subtitle: s.artistName ?? 'Bài hát',
+                    imageUrl: s.coverUrl,
+                    onTap: () => _playSong(s, recommended, i),
+                  ).animate().fadeIn(delay: (i * 50).ms).scale(begin: const Offset(0.9, 0.9));
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    ];
+  }
+
   List<Widget> _buildPlaylistSection() {
     final playlistsAsync = ref.watch(systemPlaylistsProvider);
     return [
       SliverToBoxAdapter(child: HomeSectionHeader(title: 'Dành cho bạn')),
       SliverToBoxAdapter(
         child: SizedBox(
-          height: 192,
+          height: 216,
           child: playlistsAsync.when(
             loading: () => AppLoadingIndicator(),
             error: (e, _) => AppErrorState(onRetry: () => ref.invalidate(systemPlaylistsProvider)),
@@ -469,18 +604,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   List<Widget> _buildArtistSection() {
-    final artistsAsync = ref.watch(artistsProvider);
+    final artistsAsync = ref.watch(top10ArtistsProvider);
     return [
-      SliverToBoxAdapter(child: HomeSectionHeader(title: 'Nghệ sĩ nổi bật')),
-      SliverToBoxAdapter(
-        child: artistsAsync.when(
-          loading: () => SizedBox(height: 104, child: AppLoadingIndicator()),
-          error: (e, _) => AppErrorState(onRetry: () => ref.invalidate(artistsProvider)),
-          data: (artists) {
-            if (artists.isEmpty) return const SizedBox.shrink();
-            return ArtistAvatarRow(artists: artists, onTap: _openArtist).animate().fadeIn();
-          },
+      artistsAsync.when(
+        loading: () => const SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              HomeSectionHeader(title: 'Nghệ sĩ nổi bật'),
+              SizedBox(height: 104, child: AppLoadingIndicator()),
+            ],
+          ),
         ),
+        error: (e, _) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+        data: (artists) {
+          if (artists.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+          return SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const HomeSectionHeader(title: 'Nghệ sĩ nổi bật'),
+                ArtistAvatarRow(artists: artists, onTap: _openArtist).animate().fadeIn(),
+                const SizedBox(height: AppSpacing.m),
+              ],
+            ),
+          );
+        },
       ),
     ];
   }

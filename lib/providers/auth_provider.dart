@@ -9,8 +9,10 @@ final authStateProvider = StreamProvider<AuthState>((ref) {
 });
 
 final profileProvider = FutureProvider<Profile?>((ref) async {
-  final repo = ref.watch(authRepositoryProvider);
-  final user = repo.currentUser;
+  final authState = ref.watch(authStateProvider);
+  final user = authState.value?.session?.user;
   if (user == null) return null;
+
+  final repo = ref.read(authRepositoryProvider);
   return await repo.getProfile();
 });

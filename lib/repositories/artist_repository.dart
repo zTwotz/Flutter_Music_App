@@ -19,7 +19,6 @@ class ArtistRepository {
     final response = await _supabase
         .from('artists')
         .select()
-        .eq('verified', true)
         .limit(limit);
 
     return (response as List).map((e) => Artist.fromJson(e)).toList();
