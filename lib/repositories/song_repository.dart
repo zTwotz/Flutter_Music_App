@@ -59,4 +59,23 @@ class SongRepository {
 
     return (response as List).map((e) => Song.fromJson(e)).toList();
   }
+
+  /// Get a single random song from the database.
+  Future<Song?> fetchRandomSong() async {
+    // In Supabase without a custom RPC, we can fetch a few recent/trending
+    // and pick one randomly, or we can use a simpler approach. 
+    // Here we fetch up to 50 active songs randomly by using a workaround or just taking latest.
+    // For a true "random array", we shuffle the list in memory.
+    final response = await _supabase
+        .from('songs')
+        .select()
+        .eq('is_active', true)
+        .limit(50);
+        
+    final list = (response as List).map((e) => Song.fromJson(e)).toList();
+    if (list.isEmpty) return null;
+    
+    list.shuffle();
+    return list.first;
+  }
 }

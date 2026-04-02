@@ -16,7 +16,6 @@ extension PlayerNavigation on BuildContext {
       push('/player');
     } else {
       // Different song, just play and stay
-      ref.read(currentSongProvider.notifier).setSong(song);
       ref.read(audioHandlerProvider).playPlaylist(queue, initialIndex: initialIndex);
     }
   }

@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../providers/supabase_provider.dart';
 import '../../core/app_theme.dart';
-import '../../core/app_ui_utils.dart';
 import '../../widgets/state_widgets.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';

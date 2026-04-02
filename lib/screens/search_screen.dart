@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../core/app_theme.dart';
 import '../providers/search_providers.dart';
 import '../providers/auth_provider.dart';
 import '../providers/supabase_provider.dart';
-import '../providers/player_provider.dart';
 import '../widgets/user_avatar.dart';
-import '../widgets/user_drawer.dart';
 import '../widgets/search_widgets.dart';
 import '../widgets/state_widgets.dart';
 import '../models/collection_item.dart';

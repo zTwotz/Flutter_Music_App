@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/podcast.dart';
 import '../models/podcast_channel.dart';
-import '../repositories/podcast_repository.dart';
 import '../providers/supabase_provider.dart';
 import '../providers/auth_provider.dart';
 import '../core/guest_guard.dart';

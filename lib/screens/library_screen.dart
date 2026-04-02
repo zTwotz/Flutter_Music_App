@@ -12,7 +12,6 @@ import '../providers/auth_provider.dart';
 import '../providers/library_providers.dart';
 import '../models/collection_item.dart';
 import '../widgets/user_avatar.dart';
-import '../widgets/user_drawer.dart';
 import '../widgets/state_widgets.dart';
 import '../core/app_ui_utils.dart';
 

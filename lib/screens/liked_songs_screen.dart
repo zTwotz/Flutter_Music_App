@@ -4,9 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../core/app_theme.dart';
 import '../providers/library_providers.dart';
-import '../providers/player_provider.dart';
 import '../widgets/song_list_item.dart';
-import '../core/app_ui_utils.dart';
 import '../core/player_utils.dart';
 
 class LikedSongsScreen extends ConsumerWidget {

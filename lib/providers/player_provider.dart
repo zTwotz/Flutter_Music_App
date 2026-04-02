@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:async/async.dart';
 import '../services/audio_handler.dart';
 import '../models/song.dart';
@@ -8,18 +9,47 @@ import '../providers/auth_provider.dart';
 import '../providers/supabase_provider.dart';
 
 final audioHandlerProvider = Provider<AudioHandler>((ref) {
-  final handler = AudioHandler()..init();
+  final songRepo = ref.read(songRepositoryProvider);
+  final handler = AudioHandler()..init(
+    onNeedsRandomSong: () => songRepo.fetchRandomSong(),
+  );
   ref.onDispose(() => handler.dispose());
   return handler;
 });
 
-class CurrentSongNotifier extends Notifier<Song?> {
-  @override
-  Song? build() => null;
-  void setSong(Song? song) => state = song;
-}
+// A stream provider for the detailed sequence state (current index and track list)
+final sequenceStateProvider = StreamProvider<SequenceState?>((ref) {
+  final handler = ref.watch(audioHandlerProvider);
+  return handler.player.sequenceStateStream;
+});
 
-final currentSongProvider = NotifierProvider<CurrentSongNotifier, Song?>(CurrentSongNotifier.new);
+// The current song provider is now reactively derived from the player's state
+final currentSongProvider = Provider<Song?>((ref) {
+  final handler = ref.watch(audioHandlerProvider);
+  final seqState = ref.watch(sequenceStateProvider).value;
+  
+  if (seqState == null) return null;
+  
+  // Get current item from the player's tag (MediaItem)
+  final currentItem = seqState.currentSource?.tag as MediaItem?;
+  if (currentItem == null) return null;
+  
+  // Find in our queue to return a full Song object with URL
+  try {
+    return handler.currentQueue.firstWhere(
+      (s) => s.id.toString() == currentItem.id,
+    );
+  } catch (e) {
+    // If just-in-time lookup fails, reconstruct basic info from the MediaItem
+    return Song(
+      id: int.parse(currentItem.id),
+      title: currentItem.title,
+      artistName: currentItem.artist,
+      coverUrl: currentItem.artUri?.toString(),
+      audioUrl: '', // Not used for UI display
+    );
+  }
+});
 
 final playbackStateProvider = StreamProvider<PlayerState>((ref) {
   final handler = ref.watch(audioHandlerProvider);

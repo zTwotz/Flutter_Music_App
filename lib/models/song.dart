@@ -7,6 +7,8 @@ class Song {
   final String? coverUrl;
   final String audioUrl;
   final int durationSeconds;
+  final String? lyrics;
+  final String? lyricsUrl;
 
   Song({
     required this.id,
@@ -17,6 +19,8 @@ class Song {
     this.coverUrl,
     required this.audioUrl,
     this.durationSeconds = 0,
+    this.lyrics,
+    this.lyricsUrl,
   });
 
   factory Song.fromJson(Map<String, dynamic> json) {
@@ -29,6 +33,8 @@ class Song {
       coverUrl: json['cover_url'] ?? json['image_url'],
       audioUrl: json['audio_url'] ?? '',
       durationSeconds: json['duration_seconds'] ?? 0,
+      lyrics: json['lyrics'],
+      lyricsUrl: json['lyrics_url'],
     );
   }
 
@@ -42,6 +48,8 @@ class Song {
       'cover_url': coverUrl,
       'audio_url': audioUrl,
       'duration_seconds': durationSeconds,
+      'lyrics': lyrics,
+      'lyrics_url': lyricsUrl,
     };
   }
 }

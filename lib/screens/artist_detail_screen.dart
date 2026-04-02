@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../models/artist.dart';
-import '../models/collection_item.dart';
 import '../providers/artist_detail_provider.dart';
-import '../providers/player_provider.dart';
 import '../widgets/song_list_item.dart';
 import '../widgets/state_widgets.dart';
 import '../core/app_theme.dart';
-import '../core/app_ui_utils.dart';
 import '../core/player_utils.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -51,6 +47,10 @@ class ArtistDetailScreen extends ConsumerWidget {
             expandedHeight: 280,
             pinned: true,
             backgroundColor: AppTheme.surface,
+            leading: IconButton(
+              icon: const Icon(LucideIcons.chevronLeft, size: 28),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,

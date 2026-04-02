@@ -2,16 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:go_router/go_router.dart';
 
-import '../models/podcast_channel.dart';
 import '../models/podcast.dart';
 import '../models/song.dart';
 import '../providers/podcast_providers.dart';
-import '../providers/player_provider.dart';
 import '../widgets/state_widgets.dart';
 import '../core/app_theme.dart';
-import '../core/app_ui_utils.dart';
 import '../core/player_utils.dart';
 import '../widgets/podcast_card.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -56,6 +52,10 @@ class PodcastChannelScreen extends ConsumerWidget {
               expandedHeight: 240,
               pinned: true,
               backgroundColor: AppTheme.surface,
+              leading: IconButton(
+                icon: const Icon(LucideIcons.chevronLeft, size: 28),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
               flexibleSpace: FlexibleSpaceBar(
                 background: Stack(
                   fit: StackFit.expand,

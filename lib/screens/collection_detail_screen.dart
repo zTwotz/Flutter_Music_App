@@ -6,7 +6,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/collection_item.dart';
 import '../models/song.dart';
 import '../providers/collection_detail_provider.dart';
-import '../providers/player_provider.dart';
 import '../providers/supabase_provider.dart';
 import '../providers/library_providers.dart';
 import '../widgets/song_list_item.dart';
@@ -135,6 +134,10 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
             pinned: true,
             backgroundColor: AppTheme.background,
             elevation: 0,
+            leading: IconButton(
+              icon: const Icon(LucideIcons.chevronLeft, size: 28),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
             actions: [
               if (widget.item.isOwner)
                 IconButton(

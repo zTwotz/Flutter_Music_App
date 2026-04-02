@@ -1,6 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/playlist.dart';
-import '../models/song.dart';
 
 class PlaylistRepository {
   final SupabaseClient _supabase;
