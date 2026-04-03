@@ -1,5 +1,7 @@
 import 'dart:ui';
+import 'dart:io';
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -68,14 +70,9 @@ class MiniPlayer extends ConsumerWidget {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(AppRadius.s),
-                                child: currentSong.coverUrl != null
-                                    ? CachedNetworkImage(
-                                        imageUrl: currentSong.coverUrl!,
-                                        fit: BoxFit.cover,
-                                        errorWidget: (context, url, error) => _buildPlaceholder(),
-                                      )
-                                    : _buildPlaceholder(),
+                                child: _buildCoverImage(currentSong.coverUrl),
                               ),
+
                             ),
                           ),
                           const SizedBox(width: AppSpacing.m),
@@ -176,7 +173,27 @@ class MiniPlayer extends ConsumerWidget {
     ).animate().slideY(begin: 1.0, curve: Curves.easeOutQuart, duration: 600.ms);
   }
 
+  Widget _buildCoverImage(String? url) {
+    if (url == null) return _buildPlaceholder();
+    
+    if (url.startsWith('/') || url.startsWith('file://')) {
+      final path = url.replaceFirst('file://', '');
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholder(),
+      );
+    }
+    
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      errorWidget: (context, url, error) => _buildPlaceholder(),
+    );
+  }
+
   Widget _buildPlaceholder() {
+
     return Container(
       color: Colors.grey.shade900,
       child: const Icon(LucideIcons.music, color: Colors.white24, size: 20),

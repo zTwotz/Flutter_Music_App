@@ -29,6 +29,7 @@ Future<void> showPlayerOptionsBottomSheet(BuildContext context, WidgetRef ref, S
       return Consumer(
         builder: (context, ref, _) {
           final isDownloaded = ref.watch(downloadProvider.notifier).isDownloaded(song.id);
+          final progress = ref.watch(downloadProvider.notifier).getProgress(song.id);
           
           return SafeArea(
             child: Padding(
@@ -152,7 +153,18 @@ Future<void> showPlayerOptionsBottomSheet(BuildContext context, WidgetRef ref, S
                   
                   _buildOptionTile(
                     icon: isDownloaded ? LucideIcons.trash2 : LucideIcons.download,
-                    title: isDownloaded ? 'Xóa bản tải' : 'Tải xuống',
+                    title: isDownloaded ? 'Xóa bản tải' : (progress != null ? 'Đang tải...' : 'Tải xuống'),
+                    trailing: progress != null 
+                      ? SizedBox(
+                          width: 24, 
+                          height: 24, 
+                          child: CircularProgressIndicator(
+                            value: progress, 
+                            strokeWidth: 2, 
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                          )
+                        ) 
+                      : null,
                     onTap: () async {
                       final downloadNotifier = ref.read(downloadProvider.notifier);
                       try {
@@ -161,7 +173,7 @@ Future<void> showPlayerOptionsBottomSheet(BuildContext context, WidgetRef ref, S
                           if (context.mounted) {
                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xóa bản tải ngoại tuyến')));
                           }
-                        } else {
+                        } else if (progress == null) {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bắt đầu tải xuống...')));
                           await downloadNotifier.startDownload(song);
                           if (context.mounted) {
@@ -175,6 +187,7 @@ Future<void> showPlayerOptionsBottomSheet(BuildContext context, WidgetRef ref, S
                       }
                     },
                   ),
+
                 ],
               ),
             ),
@@ -189,6 +202,7 @@ Widget _buildOptionTile({
   required IconData icon,
   required String title,
   required VoidCallback onTap,
+  Widget? trailing,
 }) {
   return InkWell(
     onTap: onTap,
@@ -198,16 +212,20 @@ Widget _buildOptionTile({
         children: [
           Icon(icon, color: Colors.white, size: 24),
           const SizedBox(width: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
+          if (trailing != null) trailing,
         ],
       ),
     ),
   );
 }
+

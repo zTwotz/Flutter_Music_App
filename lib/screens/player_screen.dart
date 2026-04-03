@@ -1,5 +1,7 @@
 import 'dart:ui';
+import 'dart:io';
 import 'package:flutter/material.dart';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -15,6 +17,8 @@ import '../widgets/add_to_playlist_bottom_sheet.dart';
 import '../widgets/player_options_bottom_sheet.dart';
 import '../widgets/progress_bar.dart';
 import '../widgets/lyrics_preview_card.dart';
+import '../widgets/download_status_widgets.dart';
+import '../providers/download_provider.dart';
 import '../services/artist_service.dart';
 
 class PlayerScreen extends ConsumerWidget {
@@ -52,15 +56,10 @@ class PlayerScreen extends ConsumerWidget {
           Positioned.fill(
             child: Opacity(
               opacity: 0.6,
-              child: currentSong.coverUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: currentSong.coverUrl!,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => const SizedBox(),
-                    )
-                  : Container(color: AppTheme.surfaceHighlight),
+              child: _buildCoverImage(currentSong.coverUrl, isFull: true),
             ),
           ),
+
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
@@ -97,18 +96,30 @@ class PlayerScreen extends ConsumerWidget {
                           icon: const Icon(LucideIcons.chevronDown, color: Colors.white),
                           onPressed: () => Navigator.pop(context),
                         ),
-                        const Column(
+                        Column(
                           children: [
-                            Text(
+                            const Text(
                               'ĐANG PHÁT TỪ',
                               style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Colors.white54, fontWeight: FontWeight.bold),
                             ),
-                            Text(
-                              'Âm nhạc cho bạn',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (ref.watch(downloadProvider.notifier).isDownloaded(currentSong.id)) 
+                                  const Padding(
+                                    padding: EdgeInsets.only(right: 8.0),
+                                    child: OfflineBadge(),
+                                  ),
+                                const Text(
+                                  'Âm nhạc cho bạn',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ],
                             ),
                           ],
                         ),
+
+
                         IconButton(
                           icon: const Icon(LucideIcons.moreVertical, color: Colors.white),
                           onPressed: () => showPlayerOptionsBottomSheet(context, ref, currentSong),
@@ -139,17 +150,10 @@ class PlayerScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(24),
                           child: AspectRatio(
                             aspectRatio: 1,
-                            child: currentSong.coverUrl != null
-                                ? CachedNetworkImage(
-                                    imageUrl: currentSong.coverUrl!,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Container(
-                                    color: AppTheme.surfaceHighlight,
-                                    child: const Icon(LucideIcons.music, size: 80, color: Colors.white24),
-                                  ),
+                            child: _buildCoverImage(currentSong.coverUrl, isFull: true),
                           ),
                         ),
+
                       ),
                     ),
                   ),
@@ -276,7 +280,32 @@ class PlayerScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildCoverImage(String? url, {bool isFull = false}) {
+    if (url == null) {
+      return Container(
+        color: AppTheme.surfaceHighlight,
+        child: Icon(LucideIcons.music, size: isFull ? 80 : 20, color: Colors.white24),
+      );
+    }
+    
+    if (url.startsWith('/') || url.startsWith('file://')) {
+      final path = url.replaceFirst('file://', '');
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(color: AppTheme.surfaceHighlight),
+      );
+    }
+    
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      errorWidget: (_, __, ___) => Container(color: AppTheme.surfaceHighlight),
+    );
+  }
 }
+
 
 class ClickableArtistText extends StatefulWidget {
   final String text;
@@ -376,3 +405,5 @@ class _ClickableArtistTextState extends State<ClickableArtistText> {
     );
   }
 }
+
+

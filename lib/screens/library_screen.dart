@@ -11,9 +11,11 @@ import '../models/podcast_channel.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_providers.dart';
 import '../models/collection_item.dart';
+import '../providers/download_provider.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/state_widgets.dart';
 import '../core/app_ui_utils.dart';
+
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -76,7 +78,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       LibraryFilter.playlists => 'Danh sách phát',
                       LibraryFilter.artists => 'Nghệ sĩ',
                       LibraryFilter.podcasts => 'Podcasts',
+                      LibraryFilter.downloads => 'Đã tải xuống',
                     };
+
                     final selected = filter == f;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -120,15 +124,22 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   // ── Guest Content ─────────────────────────────────────────────────────────
 
   Widget _buildGuestContent() {
+    final filter = ref.watch(libraryFilterProvider);
     return SliverList(
       delegate: SliverChildListDelegate([
         // Always show "Bài hát đã thích" even when logged out
         _buildLikedSongsTile(null),
+
+        // Downloaded Songs section (Now always visible)
+        _buildDownloadedSongsTile(),
+
         const SizedBox(height: 40),
         _buildGuestEmptyState(),
       ]),
     );
   }
+
+
 
   Widget _buildGuestEmptyState() {
     return AppEmptyState(
@@ -164,9 +175,51 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         // Subscribed Podcast Channels
         if (filter == LibraryFilter.all || filter == LibraryFilter.podcasts)
           _buildSubscribedChannelsSection(userId),
+
+        // Downloaded Songs
+        if (filter == LibraryFilter.all || filter == LibraryFilter.downloads)
+          _buildDownloadedSongsTile(),
       ]),
     );
   }
+
+
+  // ── Downloaded Songs Tile ─────────────────────────────────────────────
+
+  Widget _buildDownloadedSongsTile() {
+    final downloadsAsync = ref.watch(downloadedSongsProvider);
+
+    return downloadsAsync.when(
+      data: (songs) {
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          leading: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1DB954).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(LucideIcons.downloadCloud, color: Color(0xFF1DB954), size: 24),
+          ),
+          title: const Text(
+            'Nhạc ngoại tuyến',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          subtitle: Text(
+            '${songs.length} bài hát đã tải',
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          ),
+          trailing: const Icon(LucideIcons.chevronRight, color: AppTheme.textSecondary, size: 18),
+          onTap: () => context.push('/downloads'),
+        );
+      },
+      loading: () => const SizedBox(),
+      error: (_, __) => const SizedBox(),
+    );
+  }
+
+
 
   // ── Liked Songs Tile ─────────────────────────────────────────────────────
 

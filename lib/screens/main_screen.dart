@@ -52,10 +52,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
     if (location.startsWith('/library') || 
         location.startsWith('/liked-songs') ||
+        location.startsWith('/downloads') ||
         location.startsWith('/playlist') ||
         location.startsWith('/album')) {
       return 2;
     }
+
     return 0;
   }
 

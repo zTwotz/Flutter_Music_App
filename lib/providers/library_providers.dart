@@ -67,7 +67,7 @@ final subscribedChannelsLibraryProvider = FutureProvider<List<PodcastChannel>>((
 
 // ─── Library Filter ───────────────────────────────────────────────────────────
 
-enum LibraryFilter { all, playlists, artists, podcasts }
+enum LibraryFilter { all, playlists, artists, podcasts, downloads }
 
 class LibraryFilterNotifier extends Notifier<LibraryFilter> {
   @override

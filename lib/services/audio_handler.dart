@@ -1,10 +1,14 @@
+import 'dart:io';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import '../models/song.dart';
+import '../models/song_download.dart';
+import 'download_service.dart';
 
 class AudioHandler {
   final AudioPlayer _player = AudioPlayer();
   final ConcatenatingAudioSource _playlist = ConcatenatingAudioSource(children: []);
+  final DownloadService _downloadService = DownloadService();
 
   AudioPlayer get player => _player;
 
@@ -63,16 +67,8 @@ class AudioHandler {
     // Update local queue
     _currentQueue.insert(insertIndex, song);
     
-    // Create source
-    final source = AudioSource.uri(
-      Uri.parse(song.audioUrl),
-      tag: MediaItem(
-        id: song.id.toString(),
-        title: song.title,
-        artist: song.artistName,
-        artUri: song.coverUrl != null ? Uri.parse(song.coverUrl!) : null,
-      ),
-    );
+    // Create source with local resolution
+    final source = await _resolveAudioSource(song);
     
     // Insert into just_audio playlist
     await _playlist.insert(insertIndex, source);
@@ -81,16 +77,44 @@ class AudioHandler {
 
   Future<void> _updatePlaylist(List<Song> songs) async {
     await _playlist.clear();
-    final sources = songs.map((song) => AudioSource.uri(
-      Uri.parse(song.audioUrl),
+    final List<AudioSource> sources = [];
+    
+    for (final song in songs) {
+      sources.add(await _resolveAudioSource(song));
+    }
+    
+    await _playlist.addAll(sources);
+  }
+
+  /// Resolves the best audio source for a song (Local File > Remote URL)
+  Future<AudioSource> _resolveAudioSource(Song song) async {
+    String finalUrl = song.audioUrl;
+    
+    // Check if we have this song downloaded
+    final downloads = await _downloadService.getAllDownloads();
+    final download = downloads.firstWhere(
+      (d) => d.id == song.id,
+      orElse: () => SongDownload(id: -1, title: '', localAudioPath: '', downloadedAt: DateTime.now())
+    );
+
+
+    if (download.id != -1) {
+      final file = File(download.localAudioPath);
+      if (await file.exists()) {
+        // Use local file path (just_audio handles file:// or plain paths depending on platform)
+        finalUrl = file.path;
+      }
+    }
+
+    return AudioSource.uri(
+      Uri.parse(finalUrl),
       tag: MediaItem(
         id: song.id.toString(),
         title: song.title,
         artist: song.artistName,
         artUri: song.coverUrl != null ? Uri.parse(song.coverUrl!) : null,
       ),
-    )).toList();
-    await _playlist.addAll(sources);
+    );
   }
 
   Future<void> togglePlayPause() async {

@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../models/song.dart';
 import '../providers/favorite_provider.dart';
+import '../providers/download_provider.dart';
+import '../widgets/download_status_widgets.dart';
 import '../core/app_theme.dart';
 
 class SongListItem extends ConsumerWidget {
@@ -23,36 +27,50 @@ class SongListItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isLikedAsync = ref.watch(isLikedProvider(song.id));
+    final isDownloaded = ref.watch(downloadProvider.notifier).isDownloaded(song.id);
+    final progress = ref.watch(downloadProvider.notifier).getProgress(song.id);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(4),
-        child: song.coverUrl != null
-            ? CachedNetworkImage(
-                imageUrl: song.coverUrl!,
-                width: 48,
-                height: 48,
-                fit: BoxFit.cover,
-                errorWidget: (context, url, error) => _buildPlaceholder(),
-              )
-            : _buildPlaceholder(),
+        child: _buildCoverImage(song.coverUrl),
       ),
+
       title: Text(
         song.title,
         style: const TextStyle(fontWeight: FontWeight.bold),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: Text(
-        song.artistName ?? 'Unknown Artist',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            song.artistName ?? 'Unknown Artist',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12),
+          ),
+          if (isDownloaded) ...[
+            const SizedBox(height: 4),
+            const OfflineBadge(),
+          ],
+        ],
       ),
       trailing: trailing ??
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (progress != null || isDownloaded)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: DownloadStatusWidget(
+                    progress: progress,
+                    isDownloaded: isDownloaded,
+                    onRetry: () => ref.read(downloadProvider.notifier).startDownload(song),
+                  ),
+                ),
               isLikedAsync.when(
                 data: (isLiked) => IconButton(
                   icon: Icon(
@@ -77,6 +95,29 @@ class SongListItem extends ConsumerWidget {
     );
   }
 
+  Widget _buildCoverImage(String? url) {
+    if (url == null) return _buildPlaceholder();
+    
+    if (url.startsWith('/') || url.startsWith('file://')) {
+      final path = url.replaceFirst('file://', '');
+      return Image.file(
+        File(path),
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholder(),
+      );
+    }
+    
+    return CachedNetworkImage(
+      imageUrl: url,
+      width: 48,
+      height: 48,
+      fit: BoxFit.cover,
+      errorWidget: (context, url, error) => _buildPlaceholder(),
+    );
+  }
+
   Widget _buildPlaceholder() {
     return Container(
       width: 48,
@@ -86,3 +127,5 @@ class SongListItem extends ConsumerWidget {
     );
   }
 }
+
+
