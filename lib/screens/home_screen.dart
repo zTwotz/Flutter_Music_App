@@ -305,6 +305,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1),
       ),
 
+
+
       ..._buildRecentSection(),
       ..._buildPlaylistSection(),
       ..._buildNewAlbumSection(),

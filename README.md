@@ -4,6 +4,12 @@ flutter clean && flutter pub get
 nguyenngoctinh011258@gmail.com
 Tinh@123
 
+
+
+flutter pub run flutter_launcher_icons:main
+
+
+
 A new Flutter project.
 
 ## Getting Started
