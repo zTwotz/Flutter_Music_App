@@ -23,12 +23,14 @@ class PlaylistRepository {
     required String name,
     String? description,
     List<int> songIds = const [],
+    String? coverUrl,
   }) async {
     // 1. Insert the playlist
     final response = await _supabase.from('playlists').insert({
       'user_id': userId,
       'name': name,
       if (description != null && description.isNotEmpty) 'description': description,
+      if (coverUrl != null && coverUrl.isNotEmpty) 'cover_url': coverUrl,
       'playlist_type': 'user',
       'is_public': false,
     }).select().single();

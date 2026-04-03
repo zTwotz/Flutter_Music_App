@@ -1,19 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
 import '../core/app_theme.dart';
 import '../providers/search_providers.dart';
 import '../providers/auth_provider.dart';
-import '../providers/supabase_provider.dart';
+import '../providers/supabase_provider.dart'; // Add this line
 import '../widgets/user_avatar.dart';
+import '../widgets/user_drawer.dart';
 import '../widgets/search_widgets.dart';
-import '../widgets/state_widgets.dart';
+
+// Import new modular UI widgets
+import '../widgets/search/search_bar_widget.dart';
+import '../widgets/search/recent_search_section.dart';
+import '../widgets/search/browse_categories_section.dart';
+import '../widgets/search/trending_section.dart';
+import '../widgets/search/search_state_widgets.dart';
+import '../widgets/search/live_suggestion_list.dart';
+import '../widgets/search/full_search_result_list.dart';
+
 import '../models/collection_item.dart';
 import '../models/song.dart';
 import '../models/podcast.dart';
+import '../models/artist.dart';
 import '../core/app_ui_utils.dart';
 import '../core/player_utils.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -25,13 +38,21 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  bool _isSubmitted = false;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(() {
       final query = _searchController.text;
+      // Use setQuery for debounce on typing
       ref.read(searchQueryProvider.notifier).setQuery(query);
+      
+      if (_isSubmitted && _focusNode.hasFocus && query.isNotEmpty) {
+        setState(() {
+          _isSubmitted = false;
+        });
+      }
     });
   }
 
@@ -44,7 +65,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _clearSearch() {
     _searchController.clear();
+    ref.read(searchQueryProvider.notifier).setQueryImmediate('');
     _focusNode.unfocus();
+    setState(() {
+      _isSubmitted = false;
+    });
   }
 
   Song _toSong(Podcast p) {
@@ -58,53 +83,83 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
+  void _saveRecentSearchItem({
+    required String keyword,
+    required String contentType,
+    String? contentId,
+    required String title,
+    String? subtitle,
+    String? imageUrl,
+  }) async {
+    final user = ref.read(authStateProvider).value?.session?.user;
+    await ref.read(searchRepositoryProvider).saveSearchItem(
+      userId: user?.id,
+      keyword: keyword,
+      contentType: contentType,
+      contentId: contentId,
+      title: title,
+      subtitle: subtitle,
+      imageUrl: imageUrl,
+    );
+    ref.invalidate(recentSearchesProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(searchQueryProvider);
     final searchResults = ref.watch(searchResultsProvider);
 
-    return Material(
-      color: AppTheme.background,
-      child: CustomScrollView(
+    return Scaffold(
+      backgroundColor: Colors.black, // Dark theme as requested
+      drawer: UserDrawer(),
+      body: CustomScrollView(
         slivers: [
           // ─── Header: Avatar + Title ──────────────────────────────────────
           SliverAppBar(
             floating: true,
-            pinned: false,
+            pinned: true,
             backgroundColor: AppTheme.background,
             elevation: 0,
-            leading: const UserAvatar(),
+            leadingWidth: 68,
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Center(
+                child: GestureDetector(
+                  onTap: () => Scaffold.of(context).openDrawer(),
+                  child: const UserAvatar(),
+                ),
+              ),
+            ),
             title: const Text(
               'Tìm kiếm',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+              style: TextStyle(
+                fontWeight: FontWeight.bold, 
+                fontSize: 28, 
+                color: Colors.white,
+                letterSpacing: -1,
+              ),
             ),
             centerTitle: false,
-          ),
-
-          // ─── Search Bar ──────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.xs),
-              child: TextField(
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(70),
+              child: SearchBarWidget(
                 controller: _searchController,
                 focusNode: _focusNode,
-                decoration: InputDecoration(
-                  hintText: 'Bạn muốn nghe gì?',
-                  prefixIcon: const Icon(LucideIcons.search, size: 20),
-                  suffixIcon: query.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(LucideIcons.x, size: 18),
-                          onPressed: _clearSearch,
-                        )
-                      : null,
-                ),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                onClear: _clearSearch,
                 onSubmitted: (value) async {
-                  final user = ref.read(authStateProvider).value?.session?.user;
-                  if (user != null && value.trim().isNotEmpty) {
-                    await ref.read(searchRepositoryProvider).saveSearch(user.id, value.trim());
-                    ref.invalidate(recentSearchesProvider);
+                  final trimmed = value.trim();
+                  if (trimmed.isNotEmpty) {
+                    ref.read(searchQueryProvider.notifier).setQueryImmediate(trimmed);
+                    _saveRecentSearchItem(
+                      keyword: trimmed,
+                      contentType: 'keyword',
+                      title: trimmed,
+                    );
+                    setState(() {
+                      _isSubmitted = true;
+                    });
                   }
+                  _focusNode.unfocus();
                 },
               ),
             ),
@@ -113,8 +168,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           // ─── Content ─────────────────────────────────────────────────────
           if (query.isEmpty)
             _buildDiscoveryView()
+          else if (!_isSubmitted)
+            LiveSuggestionList(
+              results: searchResults,
+              onSaveRecent: _saveRecentSearchItem,
+            )
           else
-            _buildResultsView(searchResults),
+            FullSearchResultList(
+              results: searchResults,
+              onSaveRecent: _saveRecentSearchItem,
+            ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
@@ -123,257 +186,128 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildDiscoveryView() {
+    // Fetch discovery data
+    final recent = ref.watch(recentSearchesProvider).value ?? [];
+    final hashtagsData = ref.watch(hashtagsProvider).value ?? [];
+    final hashtagKeywords = hashtagsData.map((h) => h['name'] as String).toList();
+    final genresList = ref.watch(genresProvider).value;
+    final moodsList = ref.watch(moodsProvider).value;
+
     return SliverList(
       delegate: SliverChildListDelegate([
-        // hashtags section
-        _buildSectionHeader('Khám phá nội dung mới mẻ'),
-        _buildHashtagsSection(),
-
-        // browse all (Genres/Categories)
-        _buildSectionHeader('Duyệt tìm tất cả'),
-        _buildGenresGrid(),
         
-        // trending
-        _buildSectionHeader('Từ khóa xu hướng'),
-        _buildTrendingKeywords(),
+        // 1. Gợi ý cho bạn (Trending Keywords from Hashtags)
+        TrendingSection(
+          trendingKeywords: hashtagKeywords,
+          onKeywordTap: (keyword) {
+            _searchController.text = keyword;
+            _searchController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _searchController.text.length)
+            );
+            ref.read(searchQueryProvider.notifier).setQueryImmediate(keyword);
+            setState(() {
+              _isSubmitted = true;
+            });
+            _focusNode.unfocus();
+          },
+        ),
 
-        // history (if logged in)
-        _buildRecentSearches(),
+        // 2. Lịch sử tìm kiếm gần đây
+        RecentSearchSection(
+          recentSearches: recent,
+          onClearHistory: () async {
+            final user = ref.read(authStateProvider).value?.session?.user;
+            await ref.read(searchRepositoryProvider).clearRecentSearches(user?.id);
+            ref.invalidate(recentSearchesProvider);
+          },
+          onSearchItemTap: (item) {
+            final contentType = item['content_type'] as String;
+            if (contentType == 'artist') {
+              final artist = Artist(
+                id: item['content_id'].toString(),
+                name: item['title'] ?? '',
+                avatarUrl: item['image_url'],
+              );
+              context.pushSafe('/artist/${artist.id}', extra: artist);
+            } else if (contentType == 'album') {
+              final album = CollectionItem(
+                id: int.tryParse(item['content_id'].toString()) ?? 0,
+                title: item['title'] ?? '',
+                coverUrl: item['image_url'],
+                type: CollectionType.album,
+              );
+              context.pushSafe('/album/${album.id}', extra: album);
+            } else if (contentType == 'playlist') {
+              final playlist = CollectionItem(
+                id: int.tryParse(item['content_id'].toString()) ?? 0,
+                title: item['title'] ?? '',
+                coverUrl: item['image_url'],
+                type: CollectionType.userPlaylist,
+              );
+              context.pushSafe('/playlist/${playlist.id}', extra: playlist);
+            } else if (contentType == 'genre' || contentType == 'mood' || contentType == 'hashtag') {
+              context.pushSafe('/category/${item['title']}', extra: {'title': item['title'], 'type': contentType});
+            } else {
+              // For keyword, song, podcast -> put into search bar and search
+              // because we lack audioUrl & full dataset to immediately play them from history
+              _searchController.text = item['keyword'] ?? item['title'] ?? '';
+              _searchController.selection = TextSelection.fromPosition(
+                TextPosition(offset: _searchController.text.length)
+              );
+              _focusNode.unfocus();
+              setState(() {
+                _isSubmitted = true;
+              });
+            }
+          },
+          onDeleteItem: (item) async {
+            final user = ref.read(authStateProvider).value?.session?.user;
+            await ref.read(searchRepositoryProvider).removeSearchItem(
+              userId: user?.id,
+              contentType: item['content_type'],
+              contentId: item['content_id'],
+              keyword: item['keyword'],
+            );
+            ref.invalidate(recentSearchesProvider);
+          },
+        ),
 
-        const SizedBox(height: 120),
+        // 3. Khám phá theo Thể Loại
+        BrowseCategoriesSection(
+          title: 'Thể Loại',
+          categoriesData: genresList,
+          onCategoryTap: (category) {
+            _searchController.text = category;
+            _searchController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _searchController.text.length)
+            );
+            ref.read(searchQueryProvider.notifier).setQueryImmediate(category);
+            setState(() {
+              _isSubmitted = true;
+            });
+            _focusNode.unfocus();
+          },
+        ),
+
+        // 4. Khám phá theo Tâm trạng
+        BrowseCategoriesSection(
+          title: 'Tâm trạng',
+          categoriesData: moodsList,
+          onCategoryTap: (mood) {
+            _searchController.text = mood;
+            _searchController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _searchController.text.length)
+            );
+            ref.read(searchQueryProvider.notifier).setQueryImmediate(mood);
+            setState(() {
+              _isSubmitted = true;
+            });
+            _focusNode.unfocus();
+          },
+        ),
       ]),
     );
   }
 
-  Widget _buildResultsView(AsyncValue<SearchResults> results) {
-    return results.when(
-      data: (data) {
-        if (data.isEmpty) {
-          return SliverFillRemaining(
-            child: AppEmptyState(
-              icon: LucideIcons.search,
-              title: 'Không tìm thấy kết quả',
-              message: 'Vui lòng kiểm tra lại từ khóa hoặc thử một nội dung khác.',
-            ),
-          );
-        }
-
-        return SliverList(
-          delegate: SliverChildListDelegate([
-            if (data.songs.isNotEmpty) ...[
-              _buildSectionHeader('Bài hát'),
-              ...data.songs.asMap().entries.map((e) => SearchResultTile(
-                    title: e.value.title,
-                    subtitle: e.value.artistName ?? 'Âm nhạc',
-                    imageUrl: e.value.coverUrl,
-                    type: 'song',
-                    onTap: () {
-                      context.playOrNavigate(ref, e.value, data.songs, initialIndex: e.key);
-                    },
-                  ).animate().fadeIn(delay: (e.key * 20).ms).slideX(begin: 0.05)),
-            ],
-            if (data.artists.isNotEmpty) ...[
-              _buildSectionHeader('Nghệ sĩ'),
-              ...data.artists.map((a) => SearchResultTile(
-                    title: a.name,
-                    subtitle: 'Hồ sơ',
-                    imageUrl: a.avatarUrl,
-                    type: 'artist',
-                    onTap: () => context.pushSafe('/artist/${a.id}', extra: a),
-                  )),
-            ],
-            if (data.albums.isNotEmpty) ...[
-              _buildSectionHeader('Albums'),
-              ...data.albums.map((al) => SearchResultTile(
-                    title: al.title,
-                    subtitle: 'Album',
-                    imageUrl: al.coverUrl,
-                    type: 'album',
-                    onTap: () => context.pushSafe('/album/${al.id}', extra: CollectionItem.fromAlbum(al)),
-                  )),
-            ],
-            if (data.playlists.isNotEmpty) ...[
-              _buildSectionHeader('Danh sách phát'),
-              ...data.playlists.map((p) => SearchResultTile(
-                    title: p.name,
-                    subtitle: 'Playlist',
-                    imageUrl: p.coverUrl,
-                    type: 'playlist',
-                    onTap: () {
-                      final user = ref.read(authStateProvider).value?.session?.user;
-                      context.pushSafe('/playlist/${p.id}', extra: CollectionItem.fromPlaylist(p, currentUserId: user?.id));
-                    },
-                  )),
-            ],
-            if (data.podcasts.isNotEmpty) ...[
-              _buildSectionHeader('Podcasts'),
-              ...data.podcasts.asMap().entries.map((e) {
-                final pd = e.value;
-                return SearchResultTile(
-                  title: pd.title,
-                  subtitle: pd.channelName ?? 'Podcast',
-                  imageUrl: pd.coverUrl,
-                  type: 'podcast',
-                  onTap: () {
-                    final queue = data.podcasts.map(_toSong).toList();
-                    context.playOrNavigate(ref, _toSong(pd), queue, initialIndex: e.key);
-                  },
-                );
-              }),
-            ],
-            const SizedBox(height: 120),
-          ]),
-        );
-      },
-      loading: () => const SliverFillRemaining(
-        child: AppLoadingIndicator(),
-      ),
-      error: (e, st) => SliverFillRemaining(
-        child: AppErrorState(
-          error: e.toString(),
-          onRetry: () => ref.invalidate(searchResultsProvider),
-        ),
-      ),
-    );
-  }
-
-  // ─── Private Helper Widgets ───────────────────────────────────────────────
-
-  Widget _buildSectionHeader(String title, {VoidCallback? onAction}) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.m, AppSpacing.l, AppSpacing.m, AppSpacing.s),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          if (onAction != null)
-            TextButton(
-              onPressed: onAction,
-              child: const Text('Xoá lịch sử', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHashtagsSection() {
-    final hashtags = ref.watch(hashtagsProvider);
-    return hashtags.when(
-      data: (data) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Wrap(
-          spacing: 8,
-          children: data.map((h) => HashtagChip(
-            label: h['name'], 
-            onTap: () {
-              _searchController.text = h['name'];
-              _focusNode.requestFocus();
-            }
-          )).toList(),
-        ),
-      ),
-      loading: () => const SizedBox(),
-      error: (_, __) => const SizedBox(),
-    );
-  }
-
-  Widget _buildGenresGrid() {
-    final genres = ref.watch(genresProvider);
-    return genres.when(
-      data: (data) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.6,
-          ),
-          itemCount: data.length,
-          itemBuilder: (context, index) {
-            final g = data[index];
-            // Curated colors for categories
-            final List<Color> cardColors = [
-              const Color(0xFFE8115B),
-              const Color(0xFF148A08),
-              const Color(0xFF8D67AB),
-              const Color(0xFFE13300),
-              const Color(0xFF7358FF),
-              const Color(0xFF1E3264),
-              const Color(0xFFAF2896),
-              const Color(0xFF509BF5),
-            ];
-            return SearchCategoryCard(
-              title: g['name'],
-              color: cardColors[index % cardColors.length],
-              imageUrl: g['cover_url'],
-              onTap: () {
-                _searchController.text = g['name'];
-                _focusNode.requestFocus();
-              },
-            );
-          },
-        ),
-      ),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, __) => const SizedBox(),
-    );
-  }
-
-  Widget _buildTrendingKeywords() {
-    final trends = ref.watch(trendingKeywordsProvider);
-    return trends.when(
-      data: (data) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: data.map((k) => ActionChip(
-            label: Text(k),
-            onPressed: () {
-              _searchController.text = k;
-              _focusNode.requestFocus();
-            },
-            backgroundColor: AppTheme.surfaceHighlight,
-          )).toList(),
-        ),
-      ),
-      loading: () => const SizedBox(),
-      error: (_, __) => const SizedBox(),
-    );
-  }
-
-  Widget _buildRecentSearches() {
-    final recent = ref.watch(recentSearchesProvider);
-    return recent.when(
-      data: (data) {
-        if (data.isEmpty) return const SizedBox();
-        return Column(
-          children: [
-            _buildSectionHeader('Tìm kiếm gần đây', onAction: () async {
-              final user = ref.read(authStateProvider).value?.session?.user;
-              if (user != null) {
-                await ref.read(searchRepositoryProvider).clearRecentSearches(user.id);
-                ref.invalidate(recentSearchesProvider);
-              }
-            }),
-            ...data.map((r) => ListTile(
-                  leading: const Icon(LucideIcons.history, color: AppTheme.textSecondary),
-                  title: Text(r['keyword']),
-                  trailing: const Icon(LucideIcons.arrowUpLeft, size: 20),
-                  onTap: () {
-                    _searchController.text = r['keyword'];
-                    _focusNode.requestFocus();
-                  },
-                )),
-          ],
-        );
-      },
-      loading: () => const SizedBox(),
-      error: (_, __) => const SizedBox(),
-    );
-  }
+  // Method removed.
 }

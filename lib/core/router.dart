@@ -19,6 +19,7 @@ import '../screens/auth/register_screen.dart';
 import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/otp_verification_screen.dart';
 import '../screens/auth/reset_password_screen.dart';
+import '../screens/category_detail_screen.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -146,6 +147,16 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/liked-songs',
           builder: (context, state) => const LikedSongsScreen(),
+        ),
+        GoRoute(
+          path: '/category/:id',
+          builder: (context, state) {
+            final Map<String, dynamic>? data = state.extra as Map<String, dynamic>?;
+            return CategoryDetailScreen(
+              title: data?['title'] ?? state.pathParameters['id']!,
+              type: data?['type'] ?? 'danh mục',
+            );
+          },
         ),
       ],
     ),

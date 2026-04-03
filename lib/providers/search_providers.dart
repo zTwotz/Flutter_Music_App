@@ -16,6 +16,9 @@ class SearchResults {
   final List<Album> albums;
   final List<Playlist> playlists;
   final List<Podcast> podcasts;
+  final List<Map<String, dynamic>> genres;
+  final List<Map<String, dynamic>> moods;
+  final List<Map<String, dynamic>> hashtags;
 
   SearchResults({
     required this.songs,
@@ -23,6 +26,9 @@ class SearchResults {
     required this.albums,
     required this.playlists,
     required this.podcasts,
+    required this.genres,
+    required this.moods,
+    required this.hashtags,
   });
 
   factory SearchResults.empty() => SearchResults(
@@ -31,6 +37,9 @@ class SearchResults {
         albums: [],
         playlists: [],
         podcasts: [],
+        genres: [],
+        moods: [],
+        hashtags: [],
       );
 
   bool get isEmpty =>
@@ -38,16 +47,34 @@ class SearchResults {
       artists.isEmpty &&
       albums.isEmpty &&
       playlists.isEmpty &&
-      podcasts.isEmpty;
+      podcasts.isEmpty &&
+      genres.isEmpty &&
+      moods.isEmpty &&
+      hashtags.isEmpty;
 }
 
 // ─── Providers ───────────────────────────────────────────────────────────────
 
 class SearchQueryNotifier extends Notifier<String> {
+  Timer? _debounceTimer;
+
   @override
-  String build() => '';
+  String build() {
+    ref.onDispose(() => _debounceTimer?.cancel());
+    return '';
+  }
   
   void setQuery(String query) {
+    if (state == query) return;
+    
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      state = query;
+    });
+  }
+
+  void setQueryImmediate(String query) {
+    _debounceTimer?.cancel();
     state = query;
   }
 }
@@ -58,21 +85,19 @@ final searchResultsProvider = FutureProvider<SearchResults>((ref) async {
   final query = ref.watch(searchQueryProvider);
   if (query.trim().isEmpty) return SearchResults.empty();
 
-  // Debouncing: wait for 500ms
-  await Future.delayed(const Duration(milliseconds: 500));
-  
-  // Check if we are still the relevant future (Riverpod handles this mostly, but safety first)
-  // If query changed during delay, this future might still finish, but Riverpod will use the latest one.
-
   final repo = ref.watch(searchRepositoryProvider);
   
   try {
+    // Parallel execution of all search queries
     final results = await Future.wait([
       repo.searchSongs(query),
       repo.searchArtists(query),
       repo.searchAlbums(query),
       repo.searchPlaylists(query),
       repo.searchPodcasts(query),
+      repo.searchGenres(query),
+      repo.searchMoods(query),
+      repo.searchHashtags(query),
     ]);
 
     return SearchResults(
@@ -81,6 +106,9 @@ final searchResultsProvider = FutureProvider<SearchResults>((ref) async {
       albums: results[2] as List<Album>,
       playlists: results[3] as List<Playlist>,
       podcasts: results[4] as List<Podcast>,
+      genres: results[5] as List<Map<String, dynamic>>,
+      moods: results[6] as List<Map<String, dynamic>>,
+      hashtags: results[7] as List<Map<String, dynamic>>,
     );
   } catch (e) {
     rethrow;
@@ -90,9 +118,8 @@ final searchResultsProvider = FutureProvider<SearchResults>((ref) async {
 final recentSearchesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final authState = ref.watch(authStateProvider);
   final user = authState.value?.session?.user;
-  if (user == null) return [];
-  
-  return ref.watch(searchRepositoryProvider).getRecentSearches(user.id);
+  // pass user?.id which can be null for guest mode
+  return ref.watch(searchRepositoryProvider).getRecentSearches(user?.id);
 });
 
 final trendingKeywordsProvider = FutureProvider<List<String>>((ref) async {
@@ -105,4 +132,8 @@ final hashtagsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async 
 
 final genresProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   return ref.watch(searchRepositoryProvider).getGenres();
+});
+
+final moodsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  return ref.watch(searchRepositoryProvider).getMoods();
 });

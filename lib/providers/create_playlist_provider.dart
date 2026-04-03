@@ -103,11 +103,16 @@ class CreatePlaylistNotifier extends Notifier<CreatePlaylistState> {
   Future<Playlist?> save(String userId) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
+      final String? firstSongCover = state.selectedSongs.isNotEmpty 
+          ? state.selectedSongs.first.coverUrl 
+          : null;
+
       final playlist = await ref.read(playlistRepositoryProvider).createPlaylist(
         userId: userId,
         name: state.name.trim(),
         description: state.description.trim().isEmpty ? null : state.description.trim(),
         songIds: state.selectedSongs.map((s) => s.id).toList(),
+        coverUrl: firstSongCover,
       );
       state = state.copyWith(isLoading: false);
       return playlist;
