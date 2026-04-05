@@ -10,6 +10,10 @@ class Song {
   final String? lyrics;
   final String? lyricsUrl;
 
+  final bool isPodcast;
+  final String? channelId;
+  final String? podcastId;
+
   Song({
     required this.id,
     required this.title,
@@ -21,6 +25,9 @@ class Song {
     this.durationSeconds = 0,
     this.lyrics,
     this.lyricsUrl,
+    this.isPodcast = false,
+    this.channelId,
+    this.podcastId,
   });
 
   factory Song.fromJson(Map<String, dynamic> json) {
@@ -35,6 +42,9 @@ class Song {
       durationSeconds: json['duration_seconds'] ?? 0,
       lyrics: json['lyrics'],
       lyricsUrl: json['lyrics_url'],
+      isPodcast: json['is_podcast'] == true,
+      channelId: json['channel_id']?.toString(),
+      podcastId: json['podcast_id']?.toString(),
     );
   }
 
@@ -50,6 +60,9 @@ class Song {
       'duration_seconds': durationSeconds,
       'lyrics': lyrics,
       'lyrics_url': lyricsUrl,
+      'is_podcast': isPodcast,
+      'channel_id': channelId,
+      'podcast_id': podcastId,
     };
   }
 }

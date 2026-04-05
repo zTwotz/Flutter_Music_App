@@ -80,6 +80,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       coverUrl: p.coverUrl,
       audioUrl: p.audioUrl ?? '',
       durationSeconds: p.durationSeconds,
+      isPodcast: true,
+      channelId: p.channelId,
+      podcastId: p.id,
     );
   }
 

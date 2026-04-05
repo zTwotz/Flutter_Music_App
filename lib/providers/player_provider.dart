@@ -103,7 +103,15 @@ final playerSyncProvider = Provider.autoDispose<void>((ref) {
   ref.listen(currentSongProvider, (previous, next) {
     if (next != null) {
       try {
-        repo.logListen(userId: user.id, songId: next.id.toString());
+        if (next.isPodcast && next.podcastId != null) {
+           repo.logListen(
+             userId: user.id, 
+             songId: null, 
+             podcastId: next.podcastId
+           );
+        } else {
+           repo.logListen(userId: user.id, songId: next.id.toString());
+        }
       } catch (e) {
         print('Error logging listen: $e');
       }

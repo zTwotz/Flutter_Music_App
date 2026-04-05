@@ -182,6 +182,8 @@ class PlayerScreen extends ConsumerWidget {
                               const SizedBox(height: 4),
                               ClickableArtistText(
                                 text: currentSong.artistName ?? 'Nghệ sĩ',
+                                isPodcast: currentSong.isPodcast,
+                                channelId: currentSong.channelId,
                                 style: const TextStyle(color: Colors.white70, fontSize: 16),
                               ),
                             ],
@@ -310,8 +312,16 @@ class PlayerScreen extends ConsumerWidget {
 class ClickableArtistText extends StatefulWidget {
   final String text;
   final TextStyle? style;
+  final bool isPodcast;
+  final String? channelId;
 
-  const ClickableArtistText({super.key, required this.text, this.style});
+  const ClickableArtistText({
+    super.key, 
+    required this.text, 
+    this.style,
+    this.isPodcast = false,
+    this.channelId,
+  });
 
   @override
   State<ClickableArtistText> createState() => _ClickableArtistTextState();
@@ -336,8 +346,14 @@ class _ClickableArtistTextState extends State<ClickableArtistText> {
 
   Future<void> _handleArtistTap(String artistName) async {
     if (_isLoading) return;
-    setState(() => _isLoading = true);
 
+    if (widget.isPodcast && widget.channelId != null) {
+      context.pop(); // Close player screen
+      context.push('/podcast-channel/${widget.channelId}');
+      return;
+    }
+
+    setState(() => _isLoading = true);
     try {
       final artist = await ArtistService.findArtistByName(artistName);
 

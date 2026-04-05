@@ -41,7 +41,7 @@ class FavoriteRepository {
   Future<List<Song>> fetchLikedSongs(String userId) async {
     final response = await _supabase
         .from('favorites')
-        .select('song_id, songs(*)')
+        .select('song_id, songs:songs!favorites_song_id_fkey(*)')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 

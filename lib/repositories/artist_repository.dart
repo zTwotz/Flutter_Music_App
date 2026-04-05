@@ -40,7 +40,7 @@ class ArtistRepository {
     // This query assumes a junction table song_artists for multi-artist support
     final response = await _supabase
         .from('song_artists')
-        .select('songs(*)')
+        .select('songs:songs!song_artists_song_id_fkey(*)')
         .eq('artist_id', artistId)
         .order('artist_order');
 
@@ -54,7 +54,7 @@ class ArtistRepository {
   Future<List<Album>> getArtistAlbums(String artistId) async {
     final response = await _supabase
         .from('album_artists')
-        .select('albums(*)')
+        .select('albums:albums!album_artists_album_id_fkey(*)')
         .eq('artist_id', artistId)
         .order('artist_order');
 

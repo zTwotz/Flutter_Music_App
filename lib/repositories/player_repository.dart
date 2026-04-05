@@ -9,7 +9,7 @@ class PlayerRepository {
 
   Future<Map<String, dynamic>?> fetchPlayerState(String userId) async {
     final response = await _supabase
-        .from('player_states')
+        .from('user_player_state')
         .select()
         .eq('user_id', userId)
         .maybeSingle();
@@ -24,7 +24,7 @@ class PlayerRepository {
     required String repeatMode,
     required bool shuffleEnabled,
   }) async {
-    await _supabase.from('player_states').upsert({
+    await _supabase.from('user_player_state').upsert({
       'user_id': userId,
       'current_song_id': currentSongId,
       'current_playlist_id': currentPlaylistId,
@@ -51,7 +51,7 @@ class PlayerRepository {
   Future<List<dynamic>> fetchRecentPlays(String userId) async {
     final response = await _supabase
         .from('listens')
-        .select('song_id, podcast_id, listened_at, songs(*), podcasts(*)')
+        .select('song_id, podcast_id, listened_at, songs:songs!listens_song_id_fkey(*), podcasts:podcasts!listens_podcast_id_fkey(*)')
         .eq('user_id', userId)
         .order('listened_at', ascending: false)
         .limit(30);

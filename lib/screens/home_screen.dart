@@ -53,6 +53,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       coverUrl: p.coverUrl,
       audioUrl: p.audioUrl ?? '',
       durationSeconds: p.durationSeconds,
+      isPodcast: true,
+      channelId: p.channelId,
+      podcastId: p.id,
     );
   }
 

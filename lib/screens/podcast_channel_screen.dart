@@ -25,6 +25,9 @@ class PodcastChannelScreen extends ConsumerWidget {
       coverUrl: p.coverUrl,
       audioUrl: p.audioUrl ?? '',
       durationSeconds: p.durationSeconds,
+      isPodcast: true,
+      channelId: p.channelId,
+      podcastId: p.id,
     );
   }
 
