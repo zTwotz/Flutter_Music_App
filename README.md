@@ -8,7 +8,14 @@ Tinh@123
 
 flutter pub run flutter_launcher_icons:main
 
+Tóm tắt các bước nếu bạn dùng file tên khác:
+Nếu bạn muốn dùng một file tên là my_new_logo.png chẳng hạn:
 
+Chép my_new_logo.png vào assets/images/.
+Mở file pubspec.yaml, tìm đến dòng image_path ở cuối file và sửa thành: image_path: "assets/images/my_new_logo.png"
+Chạy lệnh: flutter pub run flutter_launcher_icons:main
+Gỡ app cũ và chạy lại app mới.
+Như vậy là xong! Bạn có thể thay đổi logo bất cứ khi nào bạn muốn.
 
 A new Flutter project.
 
