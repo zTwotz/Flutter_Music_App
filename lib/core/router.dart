@@ -127,7 +127,16 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/artist/:id',
           builder: (context, state) {
-            final artist = state.extra as Artist;
+            final extra = state.extra;
+            final Artist artist;
+            if (extra is Artist) {
+              artist = extra;
+            } else if (extra is Map<String, dynamic>) {
+              artist = Artist.fromJson(extra);
+            } else {
+              // Fallback: create a minimal Artist from the path parameter
+              artist = Artist(id: state.pathParameters['id']!, name: '');
+            }
             return ArtistDetailScreen(artist: artist);
           },
         ),
